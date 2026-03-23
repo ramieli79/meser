@@ -1,0 +1,3744 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<title>מֶסֶר — מערכת נוכחות</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f2f7;
+  --surface: #ffffff;
+  --surface2: #f7f8fc;
+  --border: #e2e6f0;
+  --border2: #d0d6e8;
+  --accent: #2563eb;
+  --accent-light: #eff4ff;
+  --present: #059669;
+  --present-light: #ecfdf5;
+  --absent: #dc2626;
+  --absent-light: #fef2f2;
+  --unknown: #6b7280;
+  --unknown-light: #f3f4f6;
+  --warn: #d97706;
+  --warn-light: #fffbeb;
+  --mismatch: #7c3aed;
+  --mismatch-light: #f5f3ff;
+  --text: #111827;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --radius: 14px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 24px rgba(0,0,0,0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; direction: rtl; }
+
+/* ── HEADER ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 62px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 1px 0 var(--border), 0 2px 8px rgba(0,0,0,0.04);
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; box-shadow: 0 2px 8px rgba(37,99,235,0.3);
+}
+.logo-text { font-size: 18px; font-weight: 900; color: var(--text); letter-spacing: -0.5px; }
+.logo-text span { color: var(--accent); }
+.logo-sub { font-size: 12px; color: var(--text2); font-weight: 400; margin-top: 1px; }
+
+/* ── TABS ── */
+.tabs {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex; gap: 0;
+}
+.tab {
+  padding: 14px 20px; cursor: pointer; color: var(--text2);
+  font-size: 14px; font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s; display: flex; align-items: center; gap: 7px;
+  position: relative;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab:hover:not(.active) { color: var(--text); background: var(--surface2); }
+
+main { padding: 20px 28px; max-width: 1600px; margin: 0 auto; }
+
+/* ── DASHBOARD ── */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 1.4fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.dash-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: fadeUp 0.4s ease both;
+}
+.dash-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.dash-card::before {
+  content: ''; position: absolute;
+  top: 0; right: 0; left: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.dash-card.total::before { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.dash-card.present::before { background: linear-gradient(90deg, #059669, #34d399); }
+.dash-card.absent::before { background: linear-gradient(90deg, #dc2626, #f87171); }
+.dash-card.unknown::before { background: linear-gradient(90deg, #6b7280, #d1d5db); }
+
+.dash-card:nth-child(1) { animation-delay: 0.05s; }
+.dash-card:nth-child(2) { animation-delay: 0.1s; }
+.dash-card:nth-child(3) { animation-delay: 0.15s; }
+.dash-card:nth-child(4) { animation-delay: 0.2s; }
+
+.dash-label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.dash-value { font-size: 42px; font-weight: 900; line-height: 1; margin-bottom: 6px; letter-spacing: -2px; }
+.dash-card.total .dash-value { color: var(--accent); }
+.dash-card.present .dash-value { color: var(--present); }
+.dash-card.absent .dash-value { color: var(--absent); }
+.dash-card.unknown .dash-value { color: var(--unknown); }
+.dash-sub { font-size: 12px; color: var(--text3); }
+
+/* Progress bar */
+.progress-wrap { margin-top: 12px; }
+.progress-bar {
+  height: 6px; border-radius: 3px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 3px;
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+}
+.progress-fill.present { background: linear-gradient(90deg, #059669, #34d399); }
+.progress-fill.absent { background: linear-gradient(90deg, #dc2626, #f87171); }
+.progress-fill.unknown { background: linear-gradient(90deg, #6b7280, #d1d5db); }
+
+/* Big status panel */
+.dash-status-panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  grid-column: span 1;
+  animation: fadeUp 0.4s 0.2s ease both;
+}
+.dash-status-panel .title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+.mini-stat { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.mini-stat:last-child { border-bottom: none; padding-bottom: 0; }
+.mini-stat-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; }
+.mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mini-stat-val { font-size: 18px; font-weight: 800; }
+
+/* ── SECTION ── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: fadeUp 0.4s 0.3s ease both;
+}
+.section-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  background: var(--surface2);
+}
+.section-title { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+  font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 600;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 1px 4px rgba(37,99,235,0.2); }
+.btn-primary:hover { background: #1d4ed8; box-shadow: 0 2px 8px rgba(37,99,235,0.35); }
+.btn-success { background: var(--present); color: #fff; }
+.btn-success:hover { background: #047857; }
+.btn-danger { background: var(--absent); color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-ghost { background: transparent; color: var(--text2); border: 1.5px solid var(--border2); }
+.btn-ghost:hover { color: var(--text); border-color: var(--text2); background: var(--surface2); }
+.btn-warn { background: var(--warn); color: #fff; }
+.btn-warn:hover { background: #b45309; }
+.btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 7px; }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 280px); -webkit-overflow-scrolling: touch; }
+@media (max-width: 768px) {
+  header { padding: 0 12px; height: 54px; }
+  .tabs { padding: 0 4px; overflow-x: auto; white-space: nowrap; display: flex; -webkit-overflow-scrolling: touch; }
+  .tab { padding: 12px 10px; font-size: 12px; }
+  main { padding: 8px 8px; }
+  .dash2-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .dash2-card { padding: 14px 12px; }
+  .dash2-card .val { font-size: 28px !important; }
+  .sticky-toolbar { top: 54px; padding: 8px 8px; }
+  .filter-row { gap: 6px; }
+  .filter-row input, .filter-row select { font-size: 12px; }
+  .section-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .inline-input { width: 100px !important; }
+  .inline-select { min-width: 140px !important; }
+  body { font-size: 13px; }
+}
+table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; }
+.section { overflow: hidden; }
+thead th {
+  padding: 10px 14px; text-align: right;
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap; text-transform: uppercase; letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+thead th.group-header {
+  font-size: 11px; color: var(--accent); background: var(--accent-light);
+  text-align: center; padding: 6px 10px; border-bottom: 1px solid #bfdbfe;
+}
+thead th.group-header.green { color: var(--present); background: var(--present-light); border-bottom-color: #a7f3d0; }
+thead th.group-header.yellow { color: var(--warn); background: var(--warn-light); border-bottom-color: #fde68a; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 10px 14px; vertical-align: middle; }
+td.sep { border-right: 2px solid var(--border2); }
+tr.mismatch-row { background: #fefce8; }
+tr.mismatch-row:hover { background: #fef9c3; }
+tr.row-green { background: rgb(209,255,209) !important; }
+tr.row-green:hover { background: rgb(185,245,185) !important; }
+tr.row-red { background: rgb(254,224,214) !important; }
+tr.row-red:hover { background: rgb(250,200,188) !important; }
+tr.similar-highlight { outline: 2px solid rgba(220,38,38,0.4); outline-offset: -2px; background: #fff5f5 !important; }
+tr.similar-highlight:hover { background: #fee2e2 !important; }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.badge-present { background: var(--present-light); color: var(--present); border: 1px solid #a7f3d0; }
+.badge-absent { background: var(--absent-light); color: var(--absent); border: 1px solid #fca5a5; }
+.badge-unknown { background: var(--unknown-light); color: var(--unknown); border: 1px solid #e5e7eb; }
+.badge-manual { background: var(--warn-light); color: var(--warn); border: 1px solid #fde68a; }
+.badge-match { background: var(--present-light); color: var(--present); border: 1px solid #a7f3d0; }
+.badge-mismatch { background: var(--mismatch-light); color: var(--mismatch); border: 1px solid #ddd6fe; }
+.badge-chalal { background: #1f2937; color: #f9fafb; border: 1px solid #374151; }
+.badge-nothere { background: #f9fafb; color: #6b7280; border: 1px solid #d1d5db; }
+
+/* ── SORTABLE HEADERS ── */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--accent); background: var(--accent-light); }
+th.sort-asc::after { content: ' ▲'; font-size: 9px; color: var(--accent); }
+th.sort-desc::after { content: ' ▼'; font-size: 9px; color: var(--accent); }
+
+/* ── INLINE EDIT ── */
+.inline-select {
+  background: white; border: 1.5px solid var(--accent);
+  border-radius: 6px; padding: 5px 8px;
+  color: var(--text); font-family: 'Heebo', sans-serif; font-size: 12px;
+  direction: rtl; cursor: pointer;
+  min-width: 180px; width: 100%;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  appearance: auto;
+}
+.inline-input {
+  background: white; border: 1.5px solid var(--border2);
+  border-radius: 6px; padding: 5px 8px;
+  color: var(--text); font-family: 'Heebo', sans-serif; font-size: 12px;
+  direction: rtl; width: 130px;
+}
+.inline-input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+/* ── INPUTS ── */
+input[type=text], input[type=tel], select, textarea {
+  background: var(--surface); border: 1.5px solid var(--border2);
+  border-radius: 8px; padding: 8px 12px;
+  color: var(--text); font-family: 'Heebo', sans-serif; font-size: 13px;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  direction: rtl; width: 100%;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+textarea { resize: vertical; min-height: 70px; }
+input[type=file] { display: none; }
+
+/* ── SEARCH ── */
+.search-wrap { position: relative; display: inline-block; }
+.search-wrap input { width: 210px; padding-right: 36px; }
+.search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 200; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 28px;
+  width: 500px; max-width: 96vw; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  transform: scale(0.96) translateY(8px); transition: transform 0.2s;
+}
+.modal-overlay.open .modal { transform: scale(1) translateY(0); }
+.modal h3 { font-size: 17px; font-weight: 800; margin-bottom: 18px; color: var(--text); }
+.modal-row { margin-bottom: 14px; }
+.modal-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+.modal-sep { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.modal-info { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; }
+
+/* ── IMPORT ── */
+.import-area {
+  border: 2px dashed var(--border2); border-radius: var(--radius);
+  padding: 36px; text-align: center; cursor: pointer;
+  transition: all 0.2s; color: var(--text2); display: block;
+}
+.import-area:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+/* ── EMPTY ── */
+.empty-state { padding: 56px; text-align: center; color: var(--text3); }
+.empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state p { font-size: 14px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: #1e293b; color: #f1f5f9;
+  border-radius: 10px; padding: 11px 20px; font-size: 13px; font-weight: 500;
+  z-index: 300; transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+  pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FILTER ROW ── */
+.filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filter-row select { width: auto; padding: 7px 10px; font-size: 12px; }
+
+/* ── PILL ── */
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px; font-size: 11px; color: var(--text2); font-weight: 500;
+}
+
+/* ── INDEX CHIP ── */
+.idx { width: 24px; height: 24px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text3); font-weight: 600; }
+
+/* ── STICKY TOOLBAR ── */
+.sticky-toolbar {
+  position: sticky;
+  top: 62px; /* header height */
+  z-index: 50;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0 10px 0;
+  margin: 0 -28px 16px -28px;
+  padding-left: 28px;
+  padding-right: 28px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* ── DASHBOARD TAB ── */
+.dash2-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+}
+.dash2-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  box-shadow: var(--shadow);
+  border-top: 3px solid transparent;
+  flex: 1 0 110px;
+  min-width: 110px;
+  animation: fadeUp 0.4s ease both;
+}
+.dash2-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.dash2-card .label { font-size: 11px; font-weight: 800; color: var(--text); letter-spacing: 0.2px; margin-bottom: 6px; }
+.dash2-card .val { font-size: 28px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+.dash2-card .sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.dash2-card.c-total { border-top-color: var(--accent); }
+.dash2-card.c-alive { border-top-color: var(--present); }
+.dash2-card.c-missing { border-top-color: var(--absent); }
+.dash2-card.c-chalal { border-top-color: #1f2937; }
+.dash2-card.c-gap { border-top-color: var(--mismatch); }
+.dash2-card.c-mismatch { border-top-color: var(--warn); }
+.dash2-card.c-manual { border-top-color: var(--warn); }
+.dash2-card.c-filled { border-top-color: var(--accent); }
+
+.breakdown-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.breakdown-table td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+.breakdown-table tr:last-child td { border-bottom: none; }
+.breakdown-table .bt-label { font-weight: 500; }
+.breakdown-table .bt-val { font-weight: 800; font-size: 14px; text-align: left; width: 40px; }
+.breakdown-table .bt-bar-cell { width: 35%; }
+.breakdown-table .bt-total-row td { background: var(--surface2); font-weight: 700; border-top: 2px solid var(--border); }
+.breakdown-table tr[onclick]:hover td { background: var(--accent-light); transition: background 0.15s; }
+.breakdown-table tr[onclick] { transition: background 0.15s; }
+
+/* ── CHAT ── */
+#tab-chat { display:none; flex-direction:column; overflow:hidden; }
+#tab-chat.active { display:flex; }
+.chat-outer { display:flex; flex-direction:column; flex:1; overflow:hidden; margin:0; border-radius:0; border-right:none; border-left:none; }
+.chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; min-height:0; }
+.chat-msg { display:flex; flex-direction:column; max-width:70%; }
+.chat-msg.mine { align-self:flex-end; align-items:flex-end; }
+.chat-msg.theirs { align-self:flex-start; align-items:flex-start; }
+.chat-bubble {
+  padding:10px 14px; border-radius:14px; font-size:13px; line-height:1.5; word-break:break-word;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.chat-msg.mine .chat-bubble { background:var(--accent); color:#fff; border-bottom-left-radius:4px; }
+.chat-msg.theirs .chat-bubble { background:var(--surface); border:1px solid var(--border); color:var(--text); border-bottom-right-radius:4px; }
+.chat-meta { font-size:11px; color:var(--text3); margin-top:3px; }
+.chat-sender { font-size:11px; font-weight:700; color:var(--text2); margin-bottom:2px; }
+.chat-input-row { display:flex; gap:8px; padding:14px 16px; border-top:1px solid var(--border); background:var(--surface); }
+.chat-input-row input[type=text] { flex:1; width:auto; }
+.chat-date-sep { text-align:center; font-size:11px; color:var(--text3); margin:4px 0; display:flex; align-items:center; gap:8px; }
+.chat-date-sep::before,.chat-date-sep::after { content:''; flex:1; height:1px; background:var(--border); }
+.bar-mini { height: 5px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.bar-mini-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🗂️</div>
+    <div>
+      <div class="logo-text"><span>מֶסֶר</span></div>
+      <div class="logo-sub">מערכת ניהול נוכחות</div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:var(--text2);font-style:italic;">פותח ע"י רמי אליאס</div>
+  <div id="headerUserInfo" style="display:flex;align-items:center;gap:8px;"></div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('shatil')">🔵 צוות שטח</div>
+  <div class="tab" onclick="switchTab('meser')">🟢 צוות מס&quot;ר</div>
+  <div class="tab" onclick="switchTab('summary')">📋 רשימה כוללת</div>
+  <div class="tab" onclick="switchTab('diyuvim')">📡 דיווחים נוספים <span id="diyuvimBadge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-right:4px;font-weight:700;"></span></div>
+  <div class="tab" onclick="switchTab('dashboard')">🎛️ דשבורד</div>
+  <div class="tab" onclick="switchTab('chat')">💬 צ'אט <span id="chatBadge" style="display:none;background:var(--absent);color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-right:4px;font-weight:700;"></span></div>
+  <div class="tab" onclick="switchTab('setup')">⚙️ הגדרות</div>
+  <div class="tab" onclick="switchTab('log')">📜 לוג פעילות</div>
+  <div class="tab" onclick="switchTab('admin')" id="adminTab" style="display:none;">👤 ניהול משתמשים</div>
+</div>
+
+<main>
+
+<!-- ═══ TAB LOG ═══ -->
+<div id="tab-log" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding:20px 28px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div style="font-size:18px;font-weight:800;color:var(--text);">📜 לוג פעילות</div>
+      <button class="btn btn-ghost btn-sm" onclick="renderLogTab()">🔄 רענן</button>
+    </div>
+    <div class="section">
+      <div class="table-wrap" style="max-height:calc(100vh - 220px);">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--surface2);">
+              <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap;">זמן</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">משתמש</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">פעולה</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">שם</th>
+              <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">פרטים</th>
+            </tr>
+          </thead>
+          <tbody id="logBody"></tbody>
+        </table>
+        <div id="logEmpty" class="empty-state" style="display:none;">
+          <div class="icon">📜</div>
+          <p>אין פעילות רשומה עדיין</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB ADMIN ═══ -->
+<div id="tab-admin" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding:20px 28px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="font-size:18px;font-weight:800;margin-bottom:20px;color:var(--text);">👤 ניהול משתמשים</div>
+
+    <!-- PENDING USERS -->
+    <div class="section" style="margin-bottom:20px;">
+      <div class="section-header">
+        <span class="section-title">⏳ ממתינים לאישור <span id="pendingCount" style="background:var(--absent);color:#fff;border-radius:10px;font-size:11px;padding:2px 8px;margin-right:6px;">0</span></span>
+      </div>
+      <div id="pendingList" style="padding:8px 0;"></div>
+    </div>
+
+    <!-- ALL USERS -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">👥 כל המשתמשים</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">שם</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">אימייל</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">תפקיד</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">סטטוס</th>
+            <th style="padding:10px 14px;text-align:right;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);">פעולות</th>
+          </tr>
+        </thead>
+        <tbody id="allUsersList"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB DASHBOARD ═══ -->
+<div id="tab-dashboard" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
+  <div class="dash2-grid" id="dash2Grid">
+    <div class="dash2-card c-total"><div class="label">סה"כ ברשימה</div><div class="val" id="d2Total">0</div></div>
+    <div class="dash2-card c-alive"><div class="label">ידועים / אותרו</div><div class="val" id="d2Alive" style="color:var(--present)">0</div><div class="sub" id="d2AlivePct"></div></div>
+    <div class="dash2-card c-missing"><div class="label">נעדרים / לכודים</div><div class="val" id="d2Missing" style="color:var(--absent)">0</div><div class="sub" id="d2MissingPct"></div></div>
+    <div class="dash2-card c-chalal"><div class="label">חללים</div><div class="val" id="d2Chalal" style="color:#1f2937">0</div></div>
+    <div class="dash2-card c-gap" style="border-top-color:var(--mismatch)"><div class="label">פער — טרם נספרו</div><div class="val" id="d2Gap" style="color:var(--mismatch)">0</div><div class="sub">ללא סטטוס בשום צוות</div></div>
+    <div class="dash2-card c-mismatch"><div class="label">סתירות ⚠️</div><div class="val" id="d2Mismatch" style="color:var(--warn)">0</div><div class="sub">שטח ≠ מס"ר</div></div>
+    <div class="dash2-card c-manual"><div class="label">עודכנו ידנית (כ"א)</div><div class="val" id="d2Manual" style="color:var(--warn)">0</div></div>
+  </div>
+
+  <!-- COVERAGE CHART + BREAKDOWNS side by side -->
+  <div style="display:grid;grid-template-columns:220px 1fr 1fr;gap:16px;margin-bottom:16px;align-items:start;">
+
+    <!-- DONUT -->
+    <div class="section" style="padding:16px;display:flex;flex-direction:column;align-items:center;">
+      <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px;">כיסוי — לפי עמדת רישום</div>
+      <div style="position:relative;width:160px;height:160px;">
+        <svg id="coverageDonut" viewBox="0 0 200 200" style="width:160px;height:160px;"></svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div id="donutCenter" style="font-size:24px;font-weight:900;color:var(--text);"></div>
+          <div style="font-size:10px;color:var(--text2);">מתוך</div>
+          <div id="donutTotal" style="font-size:13px;font-weight:700;color:var(--text2);"></div>
+        </div>
+      </div>
+      <div id="donutLegend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;width:100%;"></div>
+    </div>
+
+    <!-- SHATIL BREAKDOWN -->
+    <div class="section">
+      <div class="section-header"><span class="section-title">🔵 פירוט סטטוס — צוות שטח</span></div>
+      <table class="breakdown-table" id="breakShatil"></table>
+    </div>
+
+    <!-- MESER BREAKDOWN -->
+    <div class="section">
+      <div class="section-header"><span class="section-title">🟢 פירוט סטטוס — צוות מס"ר</span></div>
+      <table class="breakdown-table" id="breakMeser"></table>
+    </div>
+  </div>
+
+  <!-- FINAL BREAKDOWN -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">⭐ פירוט סטטוס — משוקלל סופי (כ"א)</span></div>
+    <table class="breakdown-table" id="breakFinal"></table>
+  </div>
+
+  <!-- STATUS + LOCK -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+
+    <!-- LAST UPDATE + ONLINE USERS -->
+    <div class="section" style="padding:16px;">
+      <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">📊 מצב מערכת</div>
+      <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+        <div>⏱️ עדכון אחרון: <strong id="lastUpdateTime" style="color:var(--accent)">—</strong></div>
+        <div>✏️ עודכן ע"י: <strong id="lastUpdateUser" style="color:var(--text)">—</strong></div>
+        <div>🌐 גרסה: <strong style="color:var(--text2);">מֶסֶר v2.0</strong></div>
+      </div>
+    </div>
+
+    <!-- LOCK SYSTEM -->
+    <div class="section" style="padding:16px;">
+      <div style="font-size:12px;font-weight:800;color:var(--text2);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;">🔒 נעילת מערכת</div>
+      <div id="lockStatusDisplay" style="font-size:13px;margin-bottom:12px;"></div>
+      <button id="lockToggleBtn" class="btn btn-warn btn-sm" onclick="toggleSystemLock()" style="width:100%;">🔒 נעל מערכת</button>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;">נעילה מונעת עריכות מכל המשתמשים</div>
+    </div>
+  </div>
+
+  <!-- PROGRESS CHART -->
+  <div class="section" style="margin-top:16px;">
+    <div class="section-header">
+      <span class="section-title">📈 גרף התקדמות — אנשים שאותרו לאורך זמן</span>
+    </div>
+    <div style="padding:16px;">
+      <div id="progressChartWrap" style="position:relative;height:180px;width:100%;">
+        <canvas id="progressChart"></canvas>
+      </div>
+      <div id="progressChartEmpty" style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0;display:none;">אין מספיק נתוני לוג להצגת גרף</div>
+    </div>
+  </div>
+
+  <!-- STREET BREAKDOWN -->
+  <div class="section" style="margin-top:16px;">
+    <div class="section-header">
+      <span class="section-title">🏘️ פילוח לפי רחוב</span>
+    </div>
+    <div id="streetBreakdown" style="padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+</div>
+
+<!-- ═══ TAB SUMMARY ═══ -->
+<div id="tab-summary" class="tab-content">
+
+  <!-- STICKY TOOLBAR -->
+  <div class="sticky-toolbar">
+    <div class="filter-row">
+      <span style="font-size:13px;font-weight:700;color:var(--text2);margin-left:8px;">📋 רשימה כוללת</span>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="summarySearch" placeholder="חיפוש שם / ת.ז..." oninput="renderSummary()">
+      </div>
+      <select id="summaryFilter" onchange="renderSummary()">
+        <option value="">כל הסטטוסים</option>
+        <option value="מאותר חי">🟢 מאותר חי</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="התפנה עצמאית למשפחה/חברים">🏠 התפנה עצמאית</option>
+        <option value="לכוד שנוצר עמו קשר">📞 לכוד שנוצר עמו קשר</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+      <select id="matchFilter" onchange="renderSummary()">
+        <option value="">כל ההתאמות</option>
+        <option value="תואם">תואם</option>
+        <option value="לא תואם">לא תואם ⚠️</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="showAddRow('summary')">+ הוסף אדם</button>
+      <div style="margin-right:auto;display:flex;align-items:center;gap:14px;font-size:13px;">
+        <span>סה"כ: <strong id="sTotalCount" style="color:var(--accent)">0</strong></span>
+        <button onclick="nextMismatch()" style="display:flex;align-items:center;gap:6px;background:var(--mismatch-light);color:var(--mismatch);border:1.5px solid #ddd6fe;border-radius:7px;padding:5px 12px;font-family:'Heebo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='#ede9fe'" onmouseout="this.style.background='var(--mismatch-light)'">
+          ⚠️ סתירות: <strong id="sMismatchCount" style="margin-right:2px;">0</strong>
+          <span id="mismatchNav" style="font-size:11px;color:var(--text2);"></span>
+          <span style="font-size:14px;">↓</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD ROW SUMMARY -->
+  <div id="addRow-summary" style="display:none;padding:12px 16px;background:var(--accent-light);border-bottom:1px solid #bfdbfe;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input class="inline-input" id="new-summary-tz" placeholder="ת&quot;ז" style="width:110px;">
+      <input class="inline-input" id="new-summary-name" placeholder="שם מלא *" style="width:150px;border-color:var(--accent);">
+      <input class="inline-input" id="new-summary-age" placeholder="גיל" style="width:60px;">
+      <input class="inline-input" id="new-summary-street" placeholder="רחוב" style="width:120px;">
+      <input class="inline-input" id="new-summary-houseNum" placeholder="בית" style="width:60px;">
+      <input class="inline-input" id="new-summary-apt" placeholder="דירה" style="width:60px;">
+      <input class="inline-input" id="new-summary-phone" placeholder="טלפון" style="width:120px;">
+      <input class="inline-input" id="new-summary-reporter" placeholder="שם מדווח *" style="width:130px;border-color:var(--accent);">
+      <input class="inline-input" id="new-summary-operator" placeholder="איש הצוות *" style="width:130px;border-color:var(--accent);">
+      <button class="btn btn-primary btn-sm" onclick="saveNewPerson('summary')">✅ הוסף לרשימה</button>
+      <button class="btn btn-ghost btn-sm" onclick="hideAddRow('summary')">ביטול</button>
+    </div>
+    <div id="addRow-summary-warn" style="font-size:12px;color:var(--warn);margin-top:6px;display:none;"></div>
+    <div id="addRow-summary-err" style="font-size:12px;color:var(--absent);margin-top:4px;display:none;"></div>
+  </div>
+
+  <!-- TABLE ONLY -->
+  <div class="section">
+    <div class="table-wrap">
+      <table>
+        <thead style="position:sticky;top:0;z-index:10;">
+          <tr>
+            <th rowspan="2">#</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','tz')">ת"ז</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','name')">שם מלא</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','age')">גיל</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','street')">רחוב</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','houseNum')">מס' בית</th>
+            <th rowspan="2" class="sortable" onclick="sortTable('summary','apt')">דירה</th>
+            <th rowspan="2">טלפון</th>
+            <th rowspan="2" title="הוספה ידנית">ידני</th>
+            <th class="group-header sep" colspan="1">צוות שטח</th>
+            <th class="group-header green sep" colspan="1">צוות מס&quot;ר</th>
+            <th class="group-header yellow sep" colspan="4">משוקלל סופי — כ&quot;א</th>
+          </tr>
+          <tr>
+            <th class="sep">סטטוס</th>
+            <th class="sep">סטטוס</th>
+            <th class="sep">התאמה</th>
+            <th style="text-align:center;" title="אושר / נבדק">✔️</th>
+            <th>סטטוס (עריכה ישירה)</th><th>מזין</th>
+          </tr>
+        </thead>
+        <tbody id="summaryBody"></tbody>
+      </table>
+      <div id="summaryEmpty" class="empty-state" style="display:none;">
+        <div class="icon">👥</div>
+        <p>אין אנשים — ייבא רשימה או טען נתוני דמו מהגדרות</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB DIYUVIM ═══ -->
+<div id="tab-diyuvim" class="tab-content">
+  <div class="sticky-toolbar">
+    <div class="filter-row">
+      <span style="font-size:13px;font-weight:700;color:var(--text2);margin-left:8px;">📡 דיווחים נוספים</span>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="diyuvimSearch" placeholder="חיפוש שם / ת.ז..." oninput="renderDiyuvim()">
+      </div>
+      <select id="diyuvimFilter" onchange="renderDiyuvim()">
+        <option value="">כל הסטטוסים</option>
+        <option value="טופל">✅ טופל</option>
+        <option value="בטיפול">🔄 בטיפול</option>
+        <option value="ממתין">⏳ ממתין</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="syncDiyuvimNow()" id="syncDiyuvimBtn" title="סרוק עדכונים מהגיליון (עובד אחרי פרסום)">🔄 סנכרון אוטומטי</button>
+      <label class="btn btn-ghost btn-sm" style="cursor:pointer;" title="ייבא CSV מהגיליון ידנית">
+        📥 ייבוא מגיליון
+        <input type="file" id="diyuvimCsvInput" accept=".csv" style="display:none;" onchange="handleDiyuvimCsvImport(event)">
+      </label>
+      <span id="syncStatus" style="font-size:12px;color:var(--text2);"></span>
+      <button class="btn btn-danger btn-sm" onclick="clearDiyuvimData()" style="margin-right:auto;" title="מחק את כל הנתונים בטאב זה">🗑️ מחק הכל</button>
+      <span style="font-size:13px;">סה"כ: <strong id="diyuvimCount" style="color:var(--accent)">0</strong></span>
+    </div>
+  </div>
+
+
+  <div class="section">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>ת"ז</th>
+            <th>שם פרטי</th>
+            <th>שם משפחה</th>
+            <th>רחוב</th>
+            <th>מס' בית</th>
+            <th>דירה</th>
+            <th>טלפון</th>
+            <th>מקור</th>
+            <th style="text-align:center;" title="סומן כטופל">✔️ טופל</th>
+            <th>הערות</th>
+          </tr>
+        </thead>
+        <tbody id="diyuvimBody"></tbody>
+      </table>
+      <div id="diyuvimEmpty" class="empty-state" style="display:none;">
+        <div class="icon">📡</div>
+        <p>אין דיווחים — לחץ "רענן מגיליון" או "ייבוא מגיליון"</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB SHATIL ═══ -->
+<div id="tab-shatil" class="tab-content active">
+  <div class="sticky-toolbar">
+    <div class="filter-row">
+      <span style="font-size:13px;font-weight:700;color:var(--text2);margin-left:8px;">🔵 צוות שטח</span>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="shatilSearch" placeholder="חיפוש..." oninput="renderShatil()">
+      </div>
+      <select id="shatilFilter" onchange="renderShatil()">
+        <option value="">כל הסטטוסים</option>
+        <option value="מאותר חי">🟢 מאותר חי</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="התפנה עצמאית למשפחה/חברים">🏠 התפנה עצמאית</option>
+        <option value="לכוד שנוצר עמו קשר">📞 לכוד שנוצר עמו קשר</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">🔵 נתונים מהשטח — צוות טל</span>
+      <button class="btn btn-primary btn-sm" onclick="showAddRow('shatil')">+ הוסף אדם</button>
+    </div>
+    <!-- ADD ROW -->
+    <div id="addRow-shatil" style="display:none;padding:12px 16px;background:var(--accent-light);border-bottom:1px solid #bfdbfe;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input class="inline-input" id="new-shatil-tz" placeholder="ת&quot;ז" style="width:110px;">
+        <input class="inline-input" id="new-shatil-name" placeholder="שם מלא *" style="width:150px;">
+        <input class="inline-input" id="new-shatil-age" placeholder="גיל" style="width:60px;">
+        <input class="inline-input" id="new-shatil-street" placeholder="רחוב" style="width:120px;">
+        <input class="inline-input" id="new-shatil-houseNum" placeholder="בית" style="width:60px;">
+        <input class="inline-input" id="new-shatil-apt" placeholder="דירה" style="width:60px;">
+        <input class="inline-input" id="new-shatil-phone" placeholder="טלפון" style="width:120px;">
+        <input class="inline-input" id="new-shatil-reporter" placeholder="שם מדווח *" style="width:130px;border-color:var(--accent);">
+        <input class="inline-input" id="new-shatil-operator" placeholder="איש הצוות *" style="width:130px;border-color:var(--accent);">
+        <button class="btn btn-primary btn-sm" onclick="saveNewPerson('shatil')">✅ הוסף לרשימה</button>
+        <button class="btn btn-ghost btn-sm" onclick="hideAddRow('shatil')">ביטול</button>
+      </div>
+      <div id="addRow-shatil-warn" style="font-size:12px;color:var(--warn);margin-top:6px;display:none;"></div>
+      <div id="addRow-shatil-err" style="font-size:12px;color:var(--absent);margin-top:4px;display:none;"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable('shatil','index')">#</th>
+            <th class="sortable" onclick="sortTable('shatil','tz')">ת"ז</th>
+            <th class="sortable" onclick="sortTable('shatil','name')">שם מלא</th>
+            <th class="sortable" onclick="sortTable('shatil','age')">גיל</th>
+            <th class="sortable" onclick="sortTable('shatil','street')">רחוב</th>
+            <th class="sortable" onclick="sortTable('shatil','houseNum')">מס' בית</th>
+            <th class="sortable" onclick="sortTable('shatil','apt')">דירה</th>
+            <th>טלפון</th>
+            <th title="הוספה ידנית">ידני</th>
+            <th class="sortable" onclick="sortTable('shatil','status')">סטטוס</th>
+            <th>שם המדווח</th>
+            <th>טלפון מדווח</th>
+            <th>איש הצוות</th>
+            <th>הערות</th>
+          </tr>
+        </thead>
+        <tbody id="shatilBody"></tbody>
+      </table>
+      <div id="shatilEmpty" class="empty-state" style="display:none;"><div class="icon">🔵</div><p>אין נתונים</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB MESER ═══ -->
+<div id="tab-meser" class="tab-content">
+  <div class="sticky-toolbar">
+    <div class="filter-row">
+      <span style="font-size:13px;font-weight:700;color:var(--text2);margin-left:8px;">🟢 צוות מס"ר</span>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="meserSearch" placeholder="חיפוש..." oninput="renderMeser()">
+      </div>
+      <select id="meserFilter" onchange="renderMeser()">
+        <option value="">כל הסטטוסים</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">🟢 נתונים מהמסר — צוות מס"ר</span>
+      <button class="btn btn-success btn-sm" onclick="showAddRow('meser')">+ הוסף אדם</button>
+    </div>
+    <!-- ADD ROW -->
+    <div id="addRow-meser" style="display:none;padding:12px 16px;background:var(--present-light);border-bottom:1px solid #a7f3d0;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input class="inline-input" id="new-meser-tz" placeholder="ת&quot;ז" style="width:110px;">
+        <input class="inline-input" id="new-meser-name" placeholder="שם מלא *" style="width:150px;">
+        <input class="inline-input" id="new-meser-age" placeholder="גיל" style="width:60px;">
+        <input class="inline-input" id="new-meser-street" placeholder="רחוב" style="width:120px;">
+        <input class="inline-input" id="new-meser-houseNum" placeholder="בית" style="width:60px;">
+        <input class="inline-input" id="new-meser-apt" placeholder="דירה" style="width:60px;">
+        <input class="inline-input" id="new-meser-phone" placeholder="טלפון" style="width:120px;">
+        <input class="inline-input" id="new-meser-reporter" placeholder="שם מדווח *" style="width:130px;border-color:var(--present);">
+        <input class="inline-input" id="new-meser-operator" placeholder="איש הצוות *" style="width:130px;border-color:var(--present);">
+        <button class="btn btn-success btn-sm" onclick="saveNewPerson('meser')">✅ הוסף לרשימה</button>
+        <button class="btn btn-ghost btn-sm" onclick="hideAddRow('meser')">ביטול</button>
+      </div>
+      <div id="addRow-meser-warn" style="font-size:12px;color:var(--warn);margin-top:6px;display:none;"></div>
+      <div id="addRow-meser-err" style="font-size:12px;color:var(--absent);margin-top:4px;display:none;"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable('meser','index')">#</th>
+            <th class="sortable" onclick="sortTable('meser','tz')">ת"ז</th>
+            <th class="sortable" onclick="sortTable('meser','name')">שם מלא</th>
+            <th class="sortable" onclick="sortTable('meser','age')">גיל</th>
+            <th class="sortable" onclick="sortTable('meser','street')">רחוב</th>
+            <th class="sortable" onclick="sortTable('meser','houseNum')">מס' בית</th>
+            <th class="sortable" onclick="sortTable('meser','apt')">דירה</th>
+            <th>טלפון</th>
+            <th title="הוספה ידנית">ידני</th>
+            <th class="sortable" onclick="sortTable('meser','status')">סטטוס</th>
+            <th>שם המדווח</th>
+            <th>איש הצוות</th>
+            <th>הערות</th>
+          </tr>
+        </thead>
+        <tbody id="meserBody"></tbody>
+      </table>
+      <div id="meserEmpty" class="empty-state" style="display:none;"><div class="icon">🟢</div><p>אין נתונים</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB SETUP ═══ -->
+<!-- ═══ TAB DIYUVIM (דיווחים נוספים) ═══ -->
+<!-- MODAL: Sheet Settings -->
+<div class="modal-overlay" id="sheetSettingsModal">
+  <div class="modal">
+    <h3>⚙️ חיבור לגיליון Google Sheets</h3>
+    <div class="modal-info" style="font-size:12px;line-height:1.7;">
+      <strong>איך לחבר:</strong><br>
+      1. פתח את הגיליון ב-Google Sheets<br>
+      2. לחץ על <strong>File → Share → Publish to web</strong><br>
+      3. בחר <strong>CSV</strong> ואת הגיליון הנכון<br>
+      4. לחץ <strong>Publish</strong> והדבק את הכתובת למטה
+    </div>
+    <div class="modal-row">
+      <label>כתובת CSV פומבית (Publish to web)</label>
+      <input type="text" id="sheetCsvUrl" placeholder="https://docs.google.com/spreadsheets/d/.../pub?output=csv" dir="ltr">
+    </div>
+    <div class="modal-row">
+      <label>סריקה אוטומטית כל</label>
+      <select id="sheetSyncInterval" style="width:auto;">
+        <option value="0">ידני בלבד</option>
+        <option value="2">2 דקות</option>
+        <option value="5" selected>5 דקות</option>
+        <option value="10">10 דקות</option>
+        <option value="30">30 דקות</option>
+      </select>
+    </div>
+    <div id="sheetSettingsStatus" style="font-size:12px;color:var(--present);display:none;padding:8px 12px;background:var(--present-light);border-radius:8px;margin-top:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveSheetSettings()">💾 שמור וחבר</button>
+      <button class="btn btn-danger btn-sm" onclick="disconnectSheet()">🔌 נתק</button>
+      <button class="btn btn-ghost" onclick="closeModal()">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TAB CHAT ═══ -->
+<div id="tab-chat" class="tab-content">
+  <div class="chat-outer section">
+    <div class="section-header" style="flex-shrink:0;">
+      <span class="section-title">💬 צ'אט צוות</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text2);">שם שלך:</span>
+        <input type="text" id="chatName" placeholder="הזן שם..." style="width:160px;" oninput="saveChatName(this.value)">
+        <button id="clearChatBtn" class="btn btn-danger btn-sm" onclick="clearChat()" style="display:none;" title="מחק את כל ההודעות">🗑️ נקה צ'אט</button>
+      </div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+      <div class="empty-state"><div class="icon">💬</div><p>אין הודעות עדיין — התחל שיחה!</p></div>
+    </div>
+    <div class="chat-input-row" style="flex-shrink:0;">
+      <input type="text" id="chatInput" placeholder="כתוב הודעה..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <button class="btn btn-primary" onclick="sendMessage()">שלח ↵</button>
+    </div>
+  </div>
+</div>
+
+<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
+  <!-- IMPORT/EXPORT SECTION -->
+  <div style="padding:20px 28px 0;">
+    <div class="section" style="margin-bottom:20px;">
+      <div class="section-header">
+        <span class="section-title">📂 ייבוא / ייצוא נתונים</span>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📤 ייצוא CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="document.getElementById('csvInput').click()">📥 ייבוא רשימה</button>
+          <input type="file" id="csvInput" accept=".csv" onchange="handleImport(event)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1: FORMAT GUIDE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">📋 שלב 1 — מבנה הקובץ הנדרש</span>
+      <button class="btn btn-primary btn-sm" onclick="downloadTemplate()">⬇️ הורד קובץ תבנית</button>
+    </div>
+    <div style="padding:20px;">
+
+      <!-- ALERT -->
+      <div style="display:flex;gap:12px;align-items:flex-start;background:var(--accent-light);border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:20px;">
+        <div style="font-size:20px;flex-shrink:0;">ℹ️</div>
+        <div style="font-size:13px;line-height:1.7;">
+          הקובץ חייב להיות בפורמט <strong>CSV</strong> (ניתן לשמור מ-Excel כ"CSV UTF-8").<br>
+          <strong>שורה ראשונה</strong> = כותרות (ניתן להשתמש בכל שם — הסדר הוא שחשוב).<br>
+          <strong>עמודות חובה:</strong> ת"ז ושם מלא. שאר העמודות אופציונליות.
+        </div>
+      </div>
+
+      <!-- EXCEL MOCKUP -->
+      <div style="overflow-x:auto;">
+        <div style="min-width:900px;">
+          <!-- Title bar -->
+          <div style="background:#1d6f42;color:white;font-size:12px;font-weight:600;padding:6px 14px;border-radius:6px 6px 0 0;display:flex;align-items:center;gap:8px;direction:ltr;">
+            <span style="font-size:16px;">🟩</span> תבנית_ייבוא_מֶסֶר.csv
+          </div>
+          <!-- Formula bar -->
+          <div style="background:#f3f3f3;border:1px solid #c8c8c8;border-top:none;padding:4px 10px;display:flex;align-items:center;gap:8px;font-size:12px;color:#444;direction:ltr;">
+            <span style="background:white;border:1px solid #c8c8c8;padding:2px 8px;border-radius:3px;min-width:48px;text-align:center;font-family:monospace;">A1</span>
+            <span style="color:#aaa;">fx</span>
+            <span style="font-family:monospace;color:#1d6f42;">תעודת זהות</span>
+          </div>
+          <!-- Spreadsheet -->
+          <div style="border:1px solid #c8c8c8;border-top:none;border-radius:0 0 6px 6px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+            <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;direction:rtl;">
+              <!-- Column letters row -->
+              <thead>
+                <tr style="background:#f3f3f3;">
+                  <td style="width:36px;border:1px solid #d0d0d0;padding:3px;text-align:center;color:#666;font-size:11px;background:#e8e8e8;"></td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:90px;">A</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:80px;">B</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:55px;">C</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:55px;">D</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:70px;">E</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:60px;">F</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:60px;">G</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:110px;">H</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:90px;">I</td>
+                  <td style="border:1px solid #d0d0d0;padding:3px 8px;text-align:center;color:#444;font-size:11px;font-weight:600;min-width:90px;">J</td>
+                </tr>
+                <!-- HEADER ROW -->
+                <tr style="background:#e2efda;">
+                  <td style="border:1px solid #d0d0d0;padding:4px 6px;text-align:center;color:#666;font-size:11px;background:#e8e8e8;">1</td>
+                  <td style="border:2px solid #1d6f42;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">תעודת זהות</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">שם מלא</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">גיל</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">שם רחוב</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">מספר בית</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">מספר דירה</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">כתובת טקסט חופשי</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">טלפון פרטי</td>
+                  <td style="border:2px solid #1d6f42;border-right:none;padding:5px 8px;font-weight:700;color:#1d6f42;white-space:nowrap;">טלפון רווחה</td>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="background:#fff;">
+                  <td style="border:1px solid #d0d0d0;padding:4px 6px;text-align:center;color:#bbb;font-size:11px;background:#e8e8e8;">2</td>
+                  <td colspan="10" style="border:1px solid #d0d0d0;padding:8px 12px;color:#bbb;font-size:12px;font-style:italic;">← הכנס כאן את הנתונים שלך</td>
+                </tr>
+                <tr style="background:#f9f9f9;"><td style="border:1px solid #d0d0d0;padding:4px 6px;text-align:center;color:#bbb;font-size:11px;background:#e8e8e8;">3</td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td></tr>
+                <tr style="background:#fff;"><td style="border:1px solid #d0d0d0;padding:4px 6px;text-align:center;color:#bbb;font-size:11px;background:#e8e8e8;">4</td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td></tr>
+                <tr style="background:#f9f9f9;"><td style="border:1px solid #d0d0d0;padding:4px 6px;text-align:center;color:#bbb;font-size:11px;background:#e8e8e8;">5</td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td><td style="border:1px solid #d0d0d0;padding:4px 8px;"></td></tr>
+              </tbody>
+            </table>
+            <!-- Sheet tab -->
+            <div style="background:#f3f3f3;border-top:1px solid #d0d0d0;padding:4px 0 0;display:flex;direction:ltr;">
+              <div style="background:white;border:1px solid #c8c8c8;border-bottom:none;padding:4px 16px;font-size:11px;color:#1d6f42;font-weight:600;margin-right:2px;border-radius:4px 4px 0 0;">תבנית_ייבוא_מֶסֶר</div>
+              <div style="padding:4px 12px;font-size:11px;color:#aaa;">+</div>
+            </div>
+          </div>
+          <!-- Caption -->
+          <div style="margin-top:10px;font-size:12px;color:var(--text2);text-align:center;">
+            ✅ <strong>שורה 1</strong> = כותרות (חובה) &nbsp;|&nbsp; <strong>עמודה A</strong> = ת"ז (חובה) &nbsp;|&nbsp; <strong>עמודה B</strong> = שם מלא (חובה) &nbsp;|&nbsp; שאר העמודות — אופציונליות
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: UPLOAD -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">📂 שלב 2 — העלאת הקובץ</span></div>
+    <div style="padding:20px;">
+
+      <!-- IMPORT MODE -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <div id="modeReplace" onclick="setImportMode('replace')"
+          style="flex:1;min-width:200px;border:2px solid var(--accent);border-radius:10px;padding:14px 16px;cursor:pointer;background:var(--accent-light);transition:all 0.15s;">
+          <div style="font-weight:700;font-size:14px;color:var(--accent);margin-bottom:4px;">🔄 החלף רשימה</div>
+          <div style="font-size:12px;color:var(--text2);">מוחק את כל האנשים הקיימים וטוען רשימה חדשה</div>
+        </div>
+        <div id="modeAppend" onclick="setImportMode('append')"
+          style="flex:1;min-width:200px;border:2px solid var(--border2);border-radius:10px;padding:14px 16px;cursor:pointer;background:var(--surface2);transition:all 0.15s;">
+          <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;">➕ הוסף לרשימה</div>
+          <div style="font-size:12px;color:var(--text2);">מוסיף את האנשים החדשים מבלי למחוק את הקיימים</div>
+        </div>
+      </div>
+
+      <label class="import-area" for="csvInput2" id="importDropZone">
+        <div style="font-size:40px;margin-bottom:10px;">📂</div>
+        <strong style="font-size:15px;">לחץ לבחירת קובץ CSV</strong>
+        <p style="font-size:13px;margin-top:6px;color:var(--text3);">או גרור קובץ לכאן</p>
+      </label>
+      <input type="file" id="csvInput2" accept=".csv" onchange="handleImportWithPreview(event)">
+
+      <!-- PREVIEW AREA -->
+      <div id="importPreview" style="display:none;margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:14px;font-weight:700;">👁️ תצוגה מקדימה</div>
+          <div id="previewStats" style="font-size:13px;color:var(--text2);"></div>
+        </div>
+        <!-- ERRORS -->
+        <div id="importErrors" style="display:none;margin-bottom:12px;"></div>
+        <!-- TABLE PREVIEW -->
+        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:var(--surface2);">
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">#</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">ת"ז</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">שם מלא</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">גיל</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">כתובת</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">טלפון</th>
+                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">סטטוס</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-danger" id="confirmReplaceBtn" onclick="confirmImport('replace')">🔄 החלף רשימה קיימת</button>
+          <button class="btn btn-primary" id="confirmAppendBtn" onclick="confirmImport('append')">➕ הוסף לרשימה קיימת</button>
+          <button class="btn btn-ghost btn-sm" onclick="cancelImport()">ביטול</button>
+          <span id="previewRowCount" style="font-size:12px;color:var(--text2);margin-right:auto;"></span>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;" id="importActions">
+        <button class="btn btn-ghost btn-sm" onclick="loadDemo()">🎲 טען נתוני דמו</button>
+        <button class="btn btn-danger btn-sm" onclick="if(confirm('למחוק את כל הנתונים?'))clearAll()">🗑️ נקה הכל</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: LOGIC -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">⚖️ לוגיקת שקלול אוטומטי</span></div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--present-light);border:1px solid #a7f3d0;border-radius:10px;">
+        <div style="font-size:20px;">🔵</div>
+        <div><strong style="color:var(--present)">מס"ר גובר תמיד</strong> — כשיש נתון מצוות מס"ר, הוא קובע את הסטטוס הסופי (גם אם שטח מדווח חמור יותר)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--absent-light);border:1px solid #fca5a5;border-radius:10px;">
+        <div style="font-size:20px;">⚠️</div>
+        <div><strong style="color:var(--absent)">החמור גובר</strong> — כשיש רק נתון משטח, הסטטוס מהשטח הוא הסופי. סדר חומרה: מאותר חי ← לא היה בארוע ← שוהה במסר ← התפנה ← פונה לבית חולים ← לכוד ← נעדר ← חלל</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--mismatch-light);border:1px solid #ddd6fe;border-radius:10px;">
+        <div style="font-size:20px;">⚠️</div>
+        <div><strong style="color:var(--mismatch)">לא תואם</strong> — כשמס"ר ושטח מדווחים שונה, מסומן סתירה לתשומת לב</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--warn-light);border:1px solid #fde68a;border-radius:10px;">
+        <div style="font-size:20px;">✏️</div>
+        <div><strong style="color:var(--warn)">ידני (כ"א)</strong> — דריסה ידנית על ידי כ"א גוברת על הכל, עם שם המזין</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- MODAL SHATIL -->
+<div class="modal-overlay" id="editShatilModal">
+  <div class="modal">
+    <h3>🔵 עדכון נתוני שטח</h3>
+    <div id="editShatilName" style="font-size:16px;font-weight:800;color:var(--accent);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);"></div>
+    <div class="modal-row"><label>סטטוס</label>
+      <select id="shatilStatus">
+        <option value="">— לא מולא —</option>
+        <option value="מאותר חי">🟢 מאותר חי</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="התפנה עצמאית למשפחה/חברים">🏠 התפנה עצמאית למשפחה/חברים</option>
+        <option value="לכוד שנוצר עמו קשר">📞 לכוד שנוצר עמו קשר</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+    </div>
+    <div class="modal-row"><label>שם המדווח</label><input type="text" id="shatilReporter" placeholder="שם מלא"></div>
+    <div class="modal-row"><label>טלפון מדווח</label><input type="tel" id="shatilPhone" placeholder="05X-XXXXXXX"></div>
+    <div class="modal-row"><label>איש הצוות הממלא</label><input type="text" id="shatilOperator" placeholder="שם החייל / מתנדב"></div>
+    <div class="modal-row"><label>הערות</label><textarea id="shatilNotes" placeholder="הערות נוספות..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveShatil()">💾 שמור</button>
+      <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MESER -->
+<div class="modal-overlay" id="editMeserModal">
+  <div class="modal">
+    <h3>🟢 עדכון נתוני מס"ר</h3>
+    <div id="editMeserName" style="font-size:16px;font-weight:800;color:var(--present);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);"></div>
+    <div class="modal-row"><label>סטטוס</label>
+      <select id="meserStatus">
+        <option value="">— לא מולא —</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+    </div>
+    <div class="modal-row"><label>שם המדווח</label><input type="text" id="meserReporter" placeholder="שם מלא"></div>
+    <div class="modal-row"><label>איש הצוות הממלא</label><input type="text" id="meserOperator" placeholder="שם החייל / מתנדב"></div>
+    <div class="modal-row"><label>הערות</label><textarea id="meserNotes" placeholder="הערות נוספות..."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-success" onclick="saveMeser()">💾 שמור</button>
+      <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FINAL -->
+<div class="modal-overlay" id="editFinalModal">
+  <div class="modal">
+    <h3>✏️ עדכון משוקלל סופי</h3>
+    <div id="editFinalName" style="font-size:16px;font-weight:800;color:var(--warn);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);"></div>
+    <div class="modal-info" id="editFinalAutoCalc"></div>
+    <div class="modal-row"><label>סטטוס סופי (דריסה ידנית)</label>
+      <select id="finalStatus">
+        <option value="">🤖 אוטומטי (לפי הצוותים)</option>
+        <option value="מאותר חי">🟢 מאותר חי</option>
+        <option value="שוהה במסר">🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
+        <option value="התפנה עצמאית למשפחה/חברים">🏠 התפנה עצמאית למשפחה/חברים</option>
+        <option value="לכוד שנוצר עמו קשר">📞 לכוד שנוצר עמו קשר</option>
+        <option value="נעדר">❓ נעדר</option>
+        <option value="חלל">⚫ חלל</option>
+        <option value="לא היה בארוע">⚪ לא היה בארוע</option>
+      </select>
+    </div>
+    <div class="modal-row"><label>מזין העדכון (שם / תפקיד)</label><input type="text" id="finalEditor" placeholder='למשל: "ממונה כ״א"'></div>
+    <div class="modal-actions">
+      <button class="btn btn-warn" onclick="saveFinal()">💾 שמור ידנית</button>
+      <button class="btn btn-ghost" onclick="clearManual()">↩️ חזור לאוטומטי</button>
+      <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══ AUTH OVERLAY ═══ -->
+<div id="authOverlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:36px;width:420px;max-width:95vw;box-shadow:var(--shadow-lg);direction:rtl;">
+
+    <!-- LOGIN SCREEN -->
+    <div id="authLogin">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:32px;margin-bottom:8px;">🔐</div>
+        <div style="font-size:22px;font-weight:900;color:var(--text);">מֶסֶר</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:4px;">מערכת נוכחות — כניסה</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">שם משתמש</label>
+        <input type="text" id="authEmail" placeholder="שם משתמש" style="width:100%;" autocomplete="username">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">סיסמה</label>
+        <input type="password" id="authPassword" placeholder="••••••••" style="width:100%;" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="authError" style="display:none;color:var(--absent);font-size:12px;margin-bottom:12px;padding:8px 12px;background:var(--absent-light);border-radius:8px;"></div>
+      <button class="btn btn-primary" onclick="doLogin()" style="width:100%;padding:12px;">כניסה למערכת</button>
+      <div style="text-align:center;margin-top:16px;">
+        <span style="font-size:13px;color:var(--text2);">אין לך חשבון? </span>
+        <button onclick="showAuthScreen('register')" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;">הרשמה</button>
+      </div>
+    </div>
+
+    <!-- REGISTER SCREEN -->
+    <div id="authRegister" style="display:none;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:22px;font-weight:900;color:var(--text);">הרשמה למערכת</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">הגישה תאושר על ידי מנהל</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">שם משתמש *</label>
+        <input type="text" id="regUsername" placeholder="למשל: rami_elias" style="width:100%;" autocomplete="username">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">סיסמה *</label>
+        <input type="password" id="regPassword" placeholder="לפחות 6 תווים" style="width:100%;" autocomplete="new-password">
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">אימות סיסמה *</label>
+        <input type="password" id="regPasswordConfirm" placeholder="הזן סיסמה שוב" style="width:100%;" autocomplete="new-password">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">שם מלא *</label>
+          <input type="text" id="regName" placeholder="ישראל ישראלי" style="width:100%;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">צוות *</label>
+          <select id="regTeam" style="width:100%;">
+            <option value="">בחר צוות...</option>
+            <option value="shatil">צוות שטח</option>
+            <option value="meser">צוות מס"ר</option>
+            <option value="kaa">צוות כ"א</option>
+            <option value="editor">עורך</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">הערות (רשות) — מי אני ומה תפקידי</label>
+        <textarea id="regNotes" placeholder="למשל: קצין כ&quot;א גדוד 101, מטפל בסקטור צפון..." style="width:100%;min-height:60px;resize:vertical;"></textarea>
+      </div>
+      <div id="regError" style="display:none;color:var(--absent);font-size:12px;margin-bottom:12px;padding:8px 12px;background:var(--absent-light);border-radius:8px;"></div>
+      <button class="btn btn-primary" onclick="doRegister()" style="width:100%;padding:12px;">שלח בקשת הרשמה</button>
+      <div style="text-align:center;margin-top:14px;">
+        <button onclick="showAuthScreen('login')" style="background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;">← חזרה לכניסה</button>
+      </div>
+    </div>
+
+    <!-- PENDING SCREEN -->
+    <div id="authPending" style="display:none;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:8px;">הבקשה בהמתנה</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:24px;">בקשת ההרשמה שלך נשלחה למנהל המערכת.<br>תקבל גישה לאחר אישור.</div>
+      <button onclick="showAuthScreen('login')" class="btn btn-ghost">חזרה לכניסה</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ FIREBASE ═══ -->
+<script>
+window.showAuthScreen=function(s){setTimeout(function(){if(window._realShowAuthScreen)window._realShowAuthScreen(s);},200);};
+window.doLogin=function(){setTimeout(function(){if(window._realDoLogin)window._realDoLogin();},200);};
+window.doRegister=function(){setTimeout(function(){if(window._realDoRegister)window._realDoRegister();},200);};
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, onSnapshot, writeBatch, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCd-q-L3rHVkE3W4LGH7NSHy7kC7qu9a-I",
+  authDomain: "meser-ef71e.firebaseapp.com",
+  projectId: "meser-ef71e",
+  storageBucket: "meser-ef71e.firebasestorage.app",
+  messagingSenderId: "393980053205",
+  appId: "1:393980053205:web:2e9496edb20b565a40845c"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// ── ADMIN EMAIL ──
+const ADMIN_EMAIL = 'ramieli@gmail.com';
+const ADMIN_USERNAME_EMAIL = 'ramieli@meserkm.local';
+
+// ── CURRENT USER STATE ──
+window.currentUser = null;
+window.currentRole = null; // 'shatil' | 'meser' | 'kaa' | 'editor' | 'admin'
+
+window.S = { people: [], shatil: {}, meser: {}, final: {}, diyuvim: [] };
+
+// ── AUTH STATE ──
+onAuthStateChanged(auth, async user => {
+  if(!user) {
+    window.currentUser = null;
+    window.currentRole = null;
+    showAuthScreen('login');
+    return;
+  }
+  window.currentUser = user;
+
+  // Special case: admin by email/username
+  if(user.email === ADMIN_EMAIL || user.email === 'ramieli@meserkm.local') {
+    window.currentRole = 'admin';
+    await ensureUserDoc(user, 'admin');
+    startFirestoreListeners();
+    hideAuthScreen();
+    applyRoleUI();
+    return;
+  }
+
+  // Load user doc from Firestore
+  const userDoc = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js")
+    .then(m => m.getDoc(m.doc(db, 'users', user.uid)));
+
+  if(!userDoc.exists()) {
+    // New user — show pending screen
+    showAuthScreen('pending');
+    await signOut(auth);
+    return;
+  }
+
+  const userData = userDoc.data();
+  if(userData.status !== 'approved') {
+    showAuthScreen('pending');
+    await signOut(auth);
+    return;
+  }
+
+  window.currentRole = userData.role;
+
+  // Check if admin set a new password for this user
+  if(userData.passwordReset?.newPassword) {
+    await setDoc(doc(db,'users',user.uid), {passwordReset: null}, {merge:true});
+  }
+
+  startFirestoreListeners();
+  hideAuthScreen();
+  applyRoleUI();
+  // Always land on shatil tab after login
+  setTimeout(()=>switchTab('shatil'), 100);
+});
+
+function applyRoleUI() {
+  const role = window.currentRole;
+  if(!role) return;
+
+  // Setup tab: only admin and editor
+  const setupTab = document.querySelector('[onclick*="setup"]');
+  if(setupTab) setupTab.style.display = (role==='admin'||role==='editor') ? '' : 'none';
+
+  // Admin tab: only admin — force hide first, then show if admin
+  const adminTab = document.getElementById('adminTab');
+  if(adminTab) adminTab.style.display = 'none';
+  if(role==='admin') {
+    adminTab.style.display = '';
+    setTimeout(()=>renderAdminTab(), 500);
+  }
+
+  // All tabs visibility according to role table:
+  // shatil/meser/kaa/editor: all except setup (handled above) and admin (handled above)
+  // No additional tab hiding needed — everyone sees shatil, meser, summary, diyuvim, dashboard, chat
+
+  // Show user info in header
+  const userInfoEl = document.getElementById('headerUserInfo');
+  const roleLabels = {shatil:'צוות שטח', meser:'צוות מס"ר', kaa:'צוות כ"א', editor:'עורך', admin:'מנהל'};
+  if(userInfoEl) userInfoEl.innerHTML = `
+    <span style="font-size:12px;color:var(--text2);">${window.currentUser.email.replace('@meserkm.local','')}</span>
+    <span class="badge" style="background:var(--accent-light);color:var(--accent);border:1px solid #bfdbfe;font-size:11px;">${roleLabels[role]||role}</span>
+    <button class="btn btn-ghost btn-sm" onclick="doSignOut()" style="font-size:12px;">יציאה</button>
+  `;
+
+  applyEditLocksAfterRender();
+  const clearChatBtn = document.getElementById('clearChatBtn');
+  if(clearChatBtn) clearChatBtn.style.display = window.currentRole==='admin' ? '' : 'none';
+}
+
+function applyEditLocks() {
+  const role = window.currentRole;
+  // Will be called after render — locks specific inputs
+  window._editLock = role; // used by render functions
+}
+
+async function ensureUserDoc(user, role) {
+  const {getDoc, doc: fiDoc} = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
+  const ref = fiDoc(db, 'users', user.uid);
+  const snap = await getDoc(ref);
+  if(!snap.exists()) {
+    await setDoc(ref, {
+      email: user.email,
+      name: user.displayName || user.email,
+      role, status: 'approved',
+      team: 'admin',
+      createdAt: new Date().toISOString()
+    });
+  }
+}
+
+window.doSignOut = async function() {
+  // Unsubscribe all Firestore listeners before signing out
+  if(window._unsubscribers) {
+    window._unsubscribers.forEach(unsub => { try { unsub(); } catch(e) {} });
+    window._unsubscribers = [];
+  }
+  _listenersStarted = false;
+  window.currentUser = null;
+  window.currentRole = null;
+  await signOut(auth);
+  showAuthScreen('login');
+}
+
+// Firestore listeners — started after auth in startFirestoreListeners()
+// diyuvim listener defined below
+
+// ── STATUS SEVERITY (חמור = ערך גבוה יותר) ──
+const SEVERITY = {
+  'מאותר חי': 0,
+  'לא היה בארוע': 1,
+  'שוהה במסר': 2,
+  'התפנה עצמאית למשפחה/חברים': 3,
+  'פונה לבית חולים': 4,
+  'לכוד שנוצר עמו קשר': 5,
+  'נעדר': 6,
+  'חלל': 7,
+};
+
+function severityOf(s) { return SEVERITY[s] ?? -1; }
+
+// מס"ר גובר כשיש לו ערך (אפילו אם שטח חמור יותר)
+// אחרת — החמור גובר
+// ידני — מעל הכל
+function computeFinal(pid) {
+  const f = S.final[pid];
+  if(f && f.manualStatus) return {status:f.manualStatus, source:'manual', editor:f.editor, match:''};
+
+  const sh = (S.shatil[pid]||{}).status||'';
+  const ms = (S.meser[pid]||{}).status||'';
+
+  let status, match;
+  if(!sh && !ms) { status=''; match=''; }
+  else if(ms) {
+    // מס"ר קיים — גובר תמיד
+    status = ms;
+    match = sh ? (sh===ms ? 'תואם' : 'לא תואם') : 'חלקי';
+  } else {
+    // רק שטח
+    status = sh;
+    match = 'חלקי';
+  }
+
+  return {status, source:'auto', match};
+}
+
+function sBadge(s) {
+  const map = {
+    'מאותר חי':                      ['badge-present',   '🟢'],
+    'שוהה במסר':                    ['badge-match',     '🔵'],
+    'פונה לבית חולים':               ['badge-manual',    '🏥'],
+    'התפנה עצמאית למשפחה/חברים':    ['badge-unknown',   '🏠'],
+    'לכוד שנוצר עמו קשר':           ['badge-mismatch',  '📞'],
+    'נעדר':                          ['badge-absent',    '❓'],
+    'חלל':                           ['badge-chalal',    '⚫'],
+    'לא היה בארוע':                  ['badge-nothere',   '⚪'],
+  };
+  if(!s) return '<span style="color:var(--text3);font-size:12px;">—</span>';
+  const [cls, icon] = map[s] || ['badge-unknown','❓'];
+  return `<span class="badge ${cls}">${icon} ${s}</span>`;
+}
+function mBadge(m) {
+  if(m==='תואם') return '<span class="badge badge-match">✓ תואם</span>';
+  if(m==='לא תואם') return '<span class="badge badge-mismatch">⚠️ לא תואם</span>';
+  if(m==='חלקי') return '<span class="badge badge-manual">חלקי</span>';
+  return '<span style="color:var(--text3);font-size:11px;">—</span>';
+}
+
+// ── SORT STATE ──
+const _sort = { summary: {col:'', dir:1}, shatil: {col:'', dir:1}, meser: {col:'', dir:1} };
+
+window.sortTable = function(table, col) {
+  if(_sort[table].col === col) _sort[table].dir *= -1;
+  else { _sort[table].col = col; _sort[table].dir = 1; }
+  // update header classes
+  const tableEl = document.getElementById(table==='summary'?'summaryBody':table==='shatil'?'shatilBody':'meserBody')?.closest('table');
+  if(tableEl) {
+    tableEl.querySelectorAll('th').forEach(th=>{th.classList.remove('sort-asc','sort-desc');});
+    tableEl.querySelectorAll('th.sortable').forEach(th=>{
+      if(th.textContent.trim().startsWith(colLabel(col))) {
+        th.classList.add(_sort[table].dir===1?'sort-asc':'sort-desc');
+      }
+    });
+  }
+  if(table==='summary') renderSummary();
+  else if(table==='shatil') renderShatil();
+  else renderMeser();
+}
+
+function colLabel(col) {
+  return {tz:'ת"ז',name:'שם',age:'גיל',street:'רחוב',index:'#',status:'סטטוס'}[col]||col;
+}
+
+function sortPeople(people, table) {
+  const {col, dir} = _sort[table];
+  if(!col) return people;
+  return [...people].sort((a,b)=>{
+    let av, bv;
+    if(col==='status') {
+      const src = table==='shatil'?S.shatil:S.meser;
+      av = (src[a.id]||{}).status||'';
+      bv = (src[b.id]||{}).status||'';
+    } else if(col==='age') {
+      av = parseFloat(a.age)||0; bv = parseFloat(b.age)||0;
+      return (av-bv)*dir;
+    } else {
+      av = (a[col]||'').toString();
+      bv = (b[col]||'').toString();
+    }
+    return av.localeCompare(bv,'he')*dir;
+  });
+}
+
+// ── INLINE SAVE ──
+window.inlineSave = async function(coll, personId, field, value) {
+  // Check system lock
+  if(window.S.systemLocked && window.currentRole !== 'admin') {
+    showToast('🔒 המערכת נעולה — לא ניתן לערוך');
+    return;
+  }
+  // optimistic local update
+  if(!S[coll][personId]) S[coll][personId] = {};
+  S[coll][personId][field] = value;
+
+  // if status changed — clear verified and re-evaluate mismatch immediately
+  if(field === 'status') {
+    if(S.final[personId]?.verified) {
+      if(!S.final[personId]) S.final[personId] = {};
+      S.final[personId].verified = false;
+      await setDoc(doc(db,'final',personId), {verified: false}, {merge:true});
+    }
+    // re-render immediately with updated local state
+    renderSummary();
+    renderShatil();
+    renderMeser();
+  }
+
+  // persist to Firebase
+  await setDoc(doc(db, coll, personId), { [field]: value }, { merge: true });
+  // Log status changes
+  if(field === 'status') {
+    const person = S.people.find(p=>p.id===personId);
+    const tabLabel = coll==='shatil' ? 'צוות שטח' : coll==='meser' ? 'צוות מס"ר' : coll;
+    writeLog('status_change', person?.name||personId, `${tabLabel}: ${value||'ריק'}`);
+  }
+}
+
+window.inlineFinal = async function(personId, field, value) {
+  const existing = S.final[personId] || {};
+  if(field==='status') {
+    if(!value) {
+      await deleteDoc(doc(db,'final',personId));
+    } else {
+      await setDoc(doc(db,'final',personId), {...existing, manualStatus:value, verified:true, updatedAt:new Date().toISOString()}, {merge:true});
+    }
+    const person = S.people.find(p=>p.id===personId);
+    writeLog('status_change', person?.name||personId, `כ"א: ${value||'אוטומטי'}`);
+  } else {
+    await setDoc(doc(db,'final',personId), {...existing, [field]:value}, {merge:true});
+  }
+}
+
+window.toggleVerified = async function(personId, checked) {
+  // optimistic local update so UI responds immediately
+  if(!S.final[personId]) S.final[personId] = {};
+  S.final[personId].verified = checked;
+  renderSummary();
+  // then persist to Firebase
+  await setDoc(doc(db,'final',personId), {verified: checked}, {merge:true});
+}
+
+// ── RENDER ──
+function refresh() { renderDashboard2(); renderSummary(); renderShatil(); renderMeser(); setTimeout(applyEditLocksAfterRender, 150); }
+
+function polarToXY(cx, cy, r, angleDeg) {
+  const rad = (angleDeg - 0) * Math.PI / 180;
+  return { x: +(cx + r * Math.cos(rad)).toFixed(3), y: +(cy + r * Math.sin(rad)).toFixed(3) };
+}
+
+window.renderDashboard2 = function() {
+  const n = S.people.length;
+  if(!n) return;
+
+  let alive=0, missing=0, chalal=0, gap=0, mismatch=0, manual=0, filled=0;
+  const shatilCounts={}, meserCounts={}, finalCounts={};
+
+  S.people.forEach(p=>{
+    const f = computeFinal(p.id);
+    const sh = (S.shatil[p.id]||{}).status||'';
+    const ms = (S.meser[p.id]||{}).status||'';
+
+    // gap = no status in either team
+    if(!sh && !ms) gap++;
+
+    if(sh) shatilCounts[sh] = (shatilCounts[sh]||0)+1;
+    if(ms) meserCounts[ms]  = (meserCounts[ms]||0)+1;
+    if(f.status) finalCounts[f.status] = (finalCounts[f.status]||0)+1;
+
+    const s=f.status;
+    if(s==="מאותר חי"||s==="שוהה במסר"||s==="פונה לבית חולים"||s==="התפנה עצמאית למשפחה/חברים"||s==="לא היה בארוע") alive++;
+    else if(s==='נעדר'||s==='לכוד שנוצר עמו קשר') missing++;
+    else if(s==='חלל') chalal++;
+    if(f.match==='לא תואם') mismatch++;
+    if(f.source==='manual') manual++;
+    if(sh) filled++;
+  });
+
+  const pct = v => n>0 ? Math.round(v/n*100)+'%' : '0%';
+
+  document.getElementById('d2Total').textContent = n;
+  document.getElementById('d2Alive').textContent = alive;
+  document.getElementById('d2AlivePct').textContent = pct(alive)+' מהרשימה';
+  document.getElementById('d2Missing').textContent = missing;
+  document.getElementById('d2MissingPct').textContent = pct(missing)+' מהרשימה';
+  document.getElementById('d2Chalal').textContent = chalal;
+  document.getElementById('d2Gap').textContent = gap;
+  document.getElementById('d2Mismatch').textContent = mismatch;
+  document.getElementById('d2Manual').textContent = manual;
+
+  // Breakdown tables
+  const STATUSES = ['מאותר חי','שוהה במסר','פונה לבית חולים','התפנה עצמאית למשפחה/חברים','לכוד שנוצר עמו קשר','נעדר','חלל','לא היה בארוע'];
+  const COLORS = {'מאותר חי':'#059669','שוהה במסר':'#2563eb','פונה לבית חולים':'#d97706','התפנה עצמאית למשפחה/חברים':'#6b7280','לכוד שנוצר עמו קשר':'#7c3aed','נעדר':'#dc2626','חלל':'#1f2937','לא היה בארוע':'#9ca3af'};
+
+  function makeBreakdown(counts, el) {
+    const total = Object.values(counts).reduce((a,b)=>a+b,0)||0;
+    const tabName = el==='breakShatil' ? 'shatil' : 'meser';
+    const filterId = el==='breakShatil' ? 'shatilFilter' : 'meserFilter';
+    const rows = STATUSES.filter(s=>counts[s]).map(s=>`
+      <tr style="cursor:pointer;" onclick="jumpToStatus('${tabName}','${filterId}','${s}')" title="עבור לרשימה מסוננת">
+        <td class="bt-label">${sBadge(s)}</td>
+        <td class="bt-val" style="color:${COLORS[s]||'#111'}">${counts[s]||0}</td>
+        <td class="bt-bar-cell">
+          <div class="bar-mini"><div class="bar-mini-fill" style="width:${Math.round((counts[s]||0)/Math.max(total,1)*100)}%;background:${COLORS[s]||'#6b7280'}"></div></div>
+        </td>
+        <td style="font-size:11px;color:var(--text3);">${Math.round((counts[s]||0)/n*100)}% <span style="font-size:10px;color:var(--accent);">↗</span></td>
+      </tr>`).join('');
+    const totalRow = total > 0 ? `<tr class="bt-total-row"><td colspan="2" style="font-size:12px;">סה"כ מולא</td><td colspan="2" style="font-size:13px;font-weight:800;color:var(--accent);">${total} (${Math.round(total/n*100)}%)</td></tr>` : '';
+    document.getElementById(el).innerHTML = (rows || '<tr><td colspan="4" style="padding:16px;color:var(--text3);text-align:center;">אין נתונים</td></tr>') + totalRow;
+  }
+
+  function makeBreakdownFinal(counts, manualCount, el) {
+    const total = Object.values(counts).reduce((a,b)=>a+b,0)||0;
+    const rows = STATUSES.filter(s=>counts[s]).map(s=>`
+      <tr style="cursor:pointer;" onclick="jumpToStatus('summary','summaryFilter','${s}')" title="עבור לרשימה מסוננת">
+        <td class="bt-label">${sBadge(s)}</td>
+        <td class="bt-val" style="color:${COLORS[s]||'#111'}">${counts[s]||0}</td>
+        <td class="bt-bar-cell">
+          <div class="bar-mini"><div class="bar-mini-fill" style="width:${Math.round((counts[s]||0)/Math.max(total,1)*100)}%;background:${COLORS[s]||'#6b7280'}"></div></div>
+        </td>
+        <td style="font-size:11px;color:var(--text3);">${Math.round((counts[s]||0)/n*100)}% <span style="font-size:10px;color:var(--accent);">↗</span></td>
+      </tr>`).join('');
+    const totalRow = total > 0 ? `<tr class="bt-total-row"><td colspan="2" style="font-size:12px;">סה"כ מולא</td><td colspan="2" style="font-size:13px;font-weight:800;color:var(--accent);">${total} (${Math.round(total/n*100)}%)</td></tr>` : '';
+    const manualRow = `<tr style="background:var(--warn-light);border-top:2px solid var(--border);">
+      <td colspan="2" style="font-size:12px;font-weight:700;color:var(--warn);">✏️ עודכנו ידנית ע"י כ"א</td>
+      <td colspan="2" style="font-size:13px;font-weight:800;color:var(--warn);">${manualCount} (${n>0?Math.round(manualCount/n*100):0}%)</td>
+    </tr>`;
+    document.getElementById(el).innerHTML = (rows || '<tr><td colspan="4" style="padding:16px;color:var(--text3);text-align:center;">אין נתונים</td></tr>') + totalRow + manualRow;
+  }
+
+  makeBreakdown(shatilCounts, 'breakShatil');
+  makeBreakdown(meserCounts,  'breakMeser');
+  makeBreakdownFinal(finalCounts, manual, 'breakFinal');
+
+  // ── COVERAGE DONUT ──
+  // onlyShatil = has shatil but no meser
+  // onlyMeser  = has meser but no shatil
+  // both       = has both
+  // neither    = gap
+  let onlyShatil=0, onlyMeser=0, both=0, neither=0;
+  S.people.forEach(p=>{
+    const hasSh = !!(S.shatil[p.id]||{}).status;
+    const hasMs = !!(S.meser[p.id]||{}).status;
+    if(hasSh && hasMs) both++;
+    else if(hasSh) onlyShatil++;
+    else if(hasMs) onlyMeser++;
+    else neither++;
+  });
+
+  const checked = onlyShatil + onlyMeser + both;
+  document.getElementById('donutCenter').textContent = checked;
+  document.getElementById('donutTotal').textContent = n + ' ברשימה';
+
+  // Build overlapping donut: 3 arcs on same ring
+  // segments: onlyShatil (blue), onlyMeser (green), both (teal overlap), neither (gray)
+  const segments = [
+    { val: onlyShatil, color: '#2563eb', label: 'שטח בלבד' },
+    { val: both,       color: '#00b894', label: 'שתי עמדות' },
+    { val: onlyMeser,  color: '#059669', label: 'מס"ר בלבד' },
+    { val: neither,    color: '#e2e6f0', label: 'טרם נבדק' },
+  ];
+
+  const cx=100, cy=100, r=76, stroke=28;
+  const total2 = n || 1;
+  const arcGap = 2; // degrees gap between segments
+  let angle = -90;
+
+  let paths = '';
+  segments.forEach(seg => {
+    if(seg.val === 0) return;
+    const sweep = (seg.val / total2) * 360 - arcGap;
+    const start = angle + arcGap/2;
+    const end = start + sweep;
+    const s = polarToXY(cx, cy, r, start);
+    const e = polarToXY(cx, cy, r, end);
+    const large = sweep > 180 ? 1 : 0;
+    paths += `<path d="M${s.x} ${s.y} A${r} ${r} 0 ${large} 1 ${e.x} ${e.y}"
+      fill="none" stroke="${seg.color}" stroke-width="${stroke}" stroke-linecap="round"
+      style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.15))"/>`;
+    angle += (seg.val / total2) * 360;
+  });
+
+  document.getElementById('coverageDonut').innerHTML = paths;
+
+  // Legend
+  document.getElementById('donutLegend').innerHTML = segments.map(seg =>
+    `<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;">
+      <div style="display:flex;align-items:center;gap:7px;">
+        <div style="width:12px;height:12px;border-radius:3px;background:${seg.color};flex-shrink:0;"></div>
+        <span style="color:var(--text2);">${seg.label}</span>
+      </div>
+      <strong style="color:var(--text);">${seg.val}</strong>
+    </div>`
+  ).join('');
+}
+
+window.renderDashboard = function() {
+  const n=S.people.length;
+  let alive=0,missing=0,chalal=0,mismatch=0,manual=0,filled=0;
+  S.people.forEach(p=>{
+    const f=computeFinal(p.id);
+    const s=f.status;
+    if(s==="מאותר חי"||s==="שוהה במסר"||s==="פונה לבית חולים"||s==="התפנה עצמאית למשפחה/חברים"||s==="לא היה בארוע") alive++;
+    else if(s==='נעדר'||s==='לכוד שנוצר עמו קשר') missing++;
+    else if(s==='חלל') chalal++;
+    if(f.match==='לא תואם') mismatch++;
+    if(f.source==='manual') manual++;
+    if(S.shatil[p.id]?.status) filled++;
+  });
+  document.getElementById('dTotal').textContent=n;
+  document.getElementById('dPresent').textContent=alive;
+  document.getElementById('dAbsent').textContent=missing;
+  document.getElementById('dUnknown').textContent=chalal;
+  document.getElementById('dMismatch').textContent=mismatch;
+  document.getElementById('dManual').textContent=manual;
+  document.getElementById('dFilled').textContent=filled;
+  if(n>0){
+    document.getElementById('dPresentBar').style.width=(alive/n*100)+'%';
+    document.getElementById('dAbsentBar').style.width=(missing/n*100)+'%';
+  }
+}
+
+window.renderSummary = function() {
+  const s=(document.getElementById('summarySearch')||{value:''}).value;
+  const sf=(document.getElementById('summaryFilter')||{value:''}).value;
+  const mf=(document.getElementById('matchFilter')||{value:''}).value;
+  let people=S.people.filter(p=>{
+    if(window._similarFilter) return window._similarFilter.ids.has(p.id);
+    const f=computeFinal(p.id);
+    if(sf&&f.status!==sf)return false;
+    if(mf&&f.match!==mf)return false;
+    const searchAddr = [p.address, p.street, p.houseNum, p.apt ? 'דירה '+p.apt : '', p.apt].filter(Boolean).join(' ');
+    if(s&&!p.name?.includes(s)&&!p.tz?.includes(s)&&!searchAddr.includes(s))return false;
+    return true;
+  });
+  people = sortPeople(people, 'summary');
+  const body=document.getElementById('summaryBody');
+  const empty=document.getElementById('summaryEmpty');
+
+  // update toolbar counters
+  let mismatchCount=0;
+  S.people.forEach(p=>{ 
+    const f=computeFinal(p.id);
+    if(f.match==='לא תואם' && f.source!=='manual' && !S.final[p.id]?.verified) mismatchCount++; 
+  });
+  const tc = document.getElementById('sTotalCount');
+  const mc = document.getElementById('sMismatchCount');
+  if(tc) tc.textContent = S.people.length;
+  if(mc) mc.textContent = mismatchCount;
+  _mismatchIdx = -1; // reset navigation when list changes
+  const nav = document.getElementById('mismatchNav');
+  if(nav) nav.textContent = '';
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML=people.map((p,i)=>{
+    const sh=S.shatil[p.id]||{}, ms=S.meser[p.id]||{}, f=computeFinal(p.id);
+    const addrDisplay = [p.street, p.houseNum ? 'מס׳ '+p.houseNum : '', p.apt ? 'דירה '+p.apt : ''].filter(Boolean).join(' ') || p.address || '—';
+    const phoneDisplay = [p.phone, p.phonesExtra, p.phoneWelfare].filter(Boolean).join(' | ') || '—';
+    const isMismatch = f.match==='לא תואם' && f.source!=='manual' && !S.final[p.id]?.verified;
+    return `<tr class="${isMismatch?'mismatch-row':''}" ${isMismatch?'data-mismatch="1"':''}>
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;white-space:nowrap;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneDisplay}</td>
+      <td style="text-align:center;">${(()=>{
+        const isManualS = p.id?.startsWith('manual_');
+        if(!isManualS) return '';
+        const isFilteredS = window._similarFilter && window._similarFilter.name === p.name;
+        return `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','summary')" title="${isFilteredS?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFilteredS?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`;
+      })()}</td>
+      <td class="sep">${sBadge(sh.status)}</td>
+      <td class="sep">${sBadge(ms.status)}</td>
+      <td class="sep">${mBadge(f.match)}</td>
+      <td style="text-align:center;"><input type="checkbox" ${S.final[p.id]?.verified?'checked':''} onchange="toggleVerified('${p.id}',this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:var(--present);"></td>
+      <td style="white-space:nowrap;">
+        <select class="inline-select" onchange="inlineFinal('${p.id}','status',this.value)" style="min-width:190px;">
+          <option value="" ${!S.final[p.id]?.manualStatus?'selected':''}>— אוטומטי (${f.status||'ריק'}) —</option>
+          <option value="מאותר חי" ${S.final[p.id]?.manualStatus==='מאותר חי'?'selected':''}>🟢 מאותר חי</option>
+          <option value="שוהה במסר" ${S.final[p.id]?.manualStatus==='שוהה במסר'?'selected':''}>🔵 שוהה במסר</option>
+          <option value="פונה לבית חולים" ${S.final[p.id]?.manualStatus==='פונה לבית חולים'?'selected':''}>🏥 פונה לבית חולים</option>
+          <option value="התפנה עצמאית למשפחה/חברים" ${S.final[p.id]?.manualStatus==='התפנה עצמאית למשפחה/חברים'?'selected':''}>🏠 התפנה עצמאית</option>
+          <option value="לכוד שנוצר עמו קשר" ${S.final[p.id]?.manualStatus==='לכוד שנוצר עמו קשר'?'selected':''}>📞 לכוד שנוצר עמו קשר</option>
+          <option value="נעדר" ${S.final[p.id]?.manualStatus==='נעדר'?'selected':''}>❓ נעדר</option>
+          <option value="חלל" ${S.final[p.id]?.manualStatus==='חלל'?'selected':''}>⚫ חלל</option>
+          <option value="לא היה בארוע" ${S.final[p.id]?.manualStatus==='לא היה בארוע'?'selected':''}>⚪ לא היה בארוע</option>
+        </select>
+      </td>
+      <td><input class="inline-input" value="${f.editor||''}" placeholder="מזין (כ&quot;א)" onchange="inlineFinal('${p.id}','editor',this.value)" style="width:120px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+window.renderShatil = function() {
+  const s=(document.getElementById('shatilSearch')||{value:''}).value;
+  const sf=(document.getElementById('shatilFilter')||{value:''}).value;
+  let people=S.people.filter(p=>{
+    if(window._similarFilter) return window._similarFilter.ids.has(p.id);
+    if(sf){const v=(S.shatil[p.id]||{}).status||'';if(v!==sf)return false;}
+    const sAddr1 = [p.address, p.street, p.houseNum, p.apt ? "דירה "+p.apt : "", p.apt].filter(Boolean).join(" ");
+    if(s&&!p.name?.includes(s)&&!p.tz?.includes(s)&&!sAddr1.includes(s))return false;
+    return true;
+  });
+  people = sortPeople(people, 'shatil');
+  const body=document.getElementById('shatilBody');
+  const empty=document.getElementById('shatilEmpty');
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  const statusOpts = ['','מאותר חי','שוהה במסר','פונה לבית חולים','התפנה עצמאית למשפחה/חברים','לכוד שנוצר עמו קשר','נעדר','חלל','לא היה בארוע'];
+
+  body.innerHTML=people.map((p,i)=>{
+    const sh=S.shatil[p.id]||{};
+    const phoneFull = [p.phone,p.phonesExtra,p.phoneWelfare].filter(Boolean).join(' | ')||'—';
+    const selOpts = statusOpts.map(o=>`<option value="${o}" ${sh.status===o?'selected':''}>${o||'— לא מולא —'}</option>`).join('');
+    const rowClass = !sh.status ? '' : (sh.status==='נעדר'||sh.status==='חלל') ? 'row-red' : 'row-green';
+    const isManual = p.id?.startsWith('manual_');
+    const isFiltered = window._similarFilter && window._similarFilter.name === p.name;
+    const manualDot = isManual
+      ? `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','shatil')" title="${isFiltered?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
+      : '';
+    return `<tr class="${rowClass}${window._similarFilter&&window._similarFilter.ids.has(p.id)&&!isFiltered?' similar-highlight':''}">
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneFull}</td>
+      <td style="text-align:center;">${manualDot}</td>
+      <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
+      <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
+      <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
+      <td><input class="inline-input" value="${sh.operator||''}" placeholder="איש הצוות" onchange="inlineSave('shatil','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+window.renderMeser = function() {
+  const s=(document.getElementById('meserSearch')||{value:''}).value;
+  const sf=(document.getElementById('meserFilter')||{value:''}).value;
+  let people=S.people.filter(p=>{
+    if(window._similarFilter) return window._similarFilter.ids.has(p.id);
+    if(sf){const v=(S.meser[p.id]||{}).status||'';if(v!==sf)return false;}
+    if(s){
+      const sAddr = [p.address,p.street,p.houseNum,p.apt?'דירה '+p.apt:'',p.apt].filter(Boolean).join(' ');
+      if(!p.name?.includes(s)&&!p.tz?.includes(s)&&!sAddr.includes(s))return false;
+    }
+    return true;
+  });
+  people = sortPeople(people, 'meser');
+  const body=document.getElementById('meserBody');
+  const empty=document.getElementById('meserEmpty');
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+
+  const statusOpts = ['','שוהה במסר','פונה לבית חולים','נעדר','חלל','לא היה בארוע'];
+
+  body.innerHTML=people.map((p,i)=>{
+    const ms=S.meser[p.id]||{};
+    const phoneFull2 = [p.phone,p.phonesExtra,p.phoneWelfare].filter(Boolean).join(' | ')||'—';
+    const selOpts = statusOpts.map(o=>`<option value="${o}" ${ms.status===o?'selected':''}>${o||'— לא מולא —'}</option>`).join('');
+    const rowClass2 = !ms.status ? '' : (ms.status==='חלל'||ms.status==='נעדר') ? 'row-red' : 'row-green';
+    const isManual2 = p.id?.startsWith('manual_');
+    const isFiltered2 = window._similarFilter && window._similarFilter.name === p.name;
+    const manualDot2 = isManual2
+      ? `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','meser')" title="${isFiltered2?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered2?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
+      : '';
+    return `<tr class="${rowClass2}${window._similarFilter&&window._similarFilter.ids.has(p.id)&&!isFiltered2?' similar-highlight':''}">
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneFull2}</td>
+      <td style="text-align:center;">${manualDot2}</td>
+      <td><select class="inline-select" onchange="inlineSave('meser','${p.id}','status',this.value)">${selOpts}</select></td>
+      <td><input class="inline-input" value="${ms.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('meser','${p.id}','reporter',this.value)"></td>
+      <td><input class="inline-input" value="${ms.operator||''}" placeholder="איש הצוות" onchange="inlineSave('meser','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${ms.notes||''}" placeholder="הערות" onchange="inlineSave('meser','${p.id}','notes',this.value)" style="width:150px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── MODALS ──
+let _eid=null;
+
+window.openShatilModal=function(id){
+  _eid=id;
+  const p=S.people.find(x=>x.id===id),sh=S.shatil[id]||{};
+  document.getElementById('editShatilName').textContent=p?.name||'';
+  document.getElementById('shatilStatus').value=sh.status||'';
+  document.getElementById('shatilReporter').value=sh.reporter||'';
+  document.getElementById('shatilPhone').value=sh.reporterPhone||'';
+  document.getElementById('shatilOperator').value=sh.operator||'';
+  document.getElementById('shatilNotes').value=sh.notes||'';
+  document.getElementById('editShatilModal').classList.add('open');
+}
+window.saveShatil=async function(){
+  await setDoc(doc(db,'shatil',_eid),{
+    status:document.getElementById('shatilStatus').value,
+    reporter:document.getElementById('shatilReporter').value,
+    reporterPhone:document.getElementById('shatilPhone').value,
+    operator:document.getElementById('shatilOperator').value,
+    notes:document.getElementById('shatilNotes').value,
+  });
+  closeModal(); showToast('✅ נתוני שטח עודכנו');
+}
+
+window.openMeserModal=function(id){
+  _eid=id;
+  const p=S.people.find(x=>x.id===id),ms=S.meser[id]||{};
+  document.getElementById('editMeserName').textContent=p?.name||'';
+  document.getElementById('meserStatus').value=ms.status||'';
+  document.getElementById('meserReporter').value=ms.reporter||'';
+  document.getElementById('meserOperator').value=ms.operator||'';
+  document.getElementById('meserNotes').value=ms.notes||'';
+  document.getElementById('editMeserModal').classList.add('open');
+}
+window.saveMeser=async function(){
+  await setDoc(doc(db,'meser',_eid),{
+    status:document.getElementById('meserStatus').value,
+    reporter:document.getElementById('meserReporter').value,
+    operator:document.getElementById('meserOperator').value,
+    notes:document.getElementById('meserNotes').value,
+  });
+  closeModal(); showToast('✅ נתוני מס"ר עודכנו');
+}
+
+window.openFinalModal=function(id){
+  _eid=id;
+  const p=S.people.find(x=>x.id===id);
+  const f=computeFinal(id),sh=S.shatil[id]||{},ms=S.meser[id]||{};
+  document.getElementById('editFinalName').textContent=p?.name||'';
+  // set current manual value or empty for auto
+  document.getElementById('finalStatus').value=S.final[id]?.manualStatus||'';
+  document.getElementById('finalEditor').value=S.final[id]?.editor||'';
+  document.getElementById('editFinalAutoCalc').innerHTML=
+    `<div style="margin-bottom:6px;"><strong style="color:var(--text2);font-size:11px;">חישוב אוטומטי נוכחי:</strong></div>
+     <div>שטח: ${sBadge(sh.status)} &nbsp;&nbsp; מס"ר: ${sBadge(ms.status)}</div>
+     <div style="margin-top:6px;">→ ${sBadge(f.status)} ${mBadge(f.match)} ${f.source==='manual'?'<span class="badge badge-manual">✏️ ידני</span>':''}</div>`;
+  document.getElementById('editFinalModal').classList.add('open');
+}
+window.saveFinal=async function(){
+  const st=document.getElementById('finalStatus').value;
+  if(!st){ showToast('⚠️ יש לבחור סטטוס'); return; }
+  const editor=document.getElementById('finalEditor').value;
+  await setDoc(doc(db,'final',_eid),{manualStatus:st, editor, updatedAt:new Date().toISOString()});
+  closeModal(); showToast('✏️ סטטוס כ"א עודכן');
+}
+window.clearManual=async function(){
+  await deleteDoc(doc(db,'final',_eid));
+  closeModal(); showToast('↩️ חזר לחישוב אוטומטי');
+}
+window.closeModal=function(){
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open'));
+}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)closeModal();}));
+
+// ── IMPORT WITH PREVIEW ──
+let _importMode = 'replace';
+let _pendingRows = [];
+
+window.setImportMode = function(mode) {
+  _importMode = mode;
+  const rEl = document.getElementById('modeReplace');
+  const aEl = document.getElementById('modeAppend');
+  if(mode==='replace') {
+    rEl.style.border='2px solid var(--accent)'; rEl.style.background='var(--accent-light)';
+    aEl.style.border='2px solid var(--border2)'; aEl.style.background='var(--surface2)';
+  } else {
+    aEl.style.border='2px solid var(--accent)'; aEl.style.background='var(--accent-light)';
+    rEl.style.border='2px solid var(--border2)'; rEl.style.background='var(--surface2)';
+  }
+}
+
+// Column name → field mapping (Hebrew synonyms)
+const COL_MAP = {
+  tz:          ['תעודת זהות','ת"ז','תז','id','ת.ז'],
+  name:        ['שם מלא','שם','name','שם פרטי ומשפחה'],
+  age:         ['גיל','age'],
+  street:      ['שם רחוב','רחוב','street'],
+  houseNum:    ['מספר בית','מס בית','מס׳ בית','house','בית'],
+  apt:         ['מספר דירה','דירה','apt','apartment'],
+  address:     ['כתובת טקסט חופשי','כתובת','address','כתובת מלאה'],
+  phone:       ['טלפון פרטי','טלפון','phone','נייד','סלולרי'],
+  phonesExtra: ['טלפונים ממקורות נוספים','טלפונים נוספים','טלפון נוסף'],
+  phoneWelfare:['טלפון רווחה','רווחה'],
+};
+
+function detectColumns(headerLine) {
+  const headers = headerLine.split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,''));
+  const map = {}; // fieldName → colIndex
+  headers.forEach((h, i) => {
+    for(const [field, synonyms] of Object.entries(COL_MAP)) {
+      if(synonyms.some(s => h.includes(s) || s.includes(h))) {
+        if(!(field in map)) map[field] = i;
+      }
+    }
+  });
+  return {map, headers, count: headers.length};
+}
+
+function parseCSVRows(text) {
+  const lines = text.trim().split('\n').map(l=>l.replace(/\r$/,''));
+  // Find header row
+  let headerIdx = 0;
+  for(let i=0; i<Math.min(5,lines.length); i++){
+    const l = lines[i];
+    if(Object.values(COL_MAP).flat().some(s => l.includes(s))) { headerIdx=i; break; }
+  }
+  const {map} = detectColumns(lines[headerIdx]);
+  const get = (parts,field) => (map[field]!==undefined ? parts[map[field]] : '') || '';
+
+  const rows = [];
+  for(let i=headerIdx+1; i<lines.length; i++){
+    const parts = lines[i].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+    if(parts.every(p=>!p)) continue;
+    const street = get(parts,'street');
+    const houseNum = get(parts,'houseNum');
+    const apt = get(parts,'apt');
+    const addrFree = get(parts,'address');
+    const rawTz = get(parts,'tz').replace(/[^0-9]/g,'');
+    const normTz = rawTz.length===8 ? '0'+rawTz : rawTz;
+    rows.push({
+      _line: i+1,
+      index: String(i-headerIdx),
+      tz: normTz,
+      name: get(parts,'name'),
+      age: get(parts,'age'),
+      street, houseNum, apt,
+      address: addrFree || [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
+      phone: get(parts,'phone'),
+      phonesExtra: get(parts,'phonesExtra'),
+      phoneWelfare: get(parts,'phoneWelfare'),
+    });
+  }
+  return rows;
+}
+
+window.confirmImport = async function(mode) {
+  if(!_pendingRows.length) return;
+  const replaceBtn = document.getElementById('confirmReplaceBtn');
+  const appendBtn = document.getElementById('confirmAppendBtn');
+  if(replaceBtn) { replaceBtn.disabled=true; replaceBtn.textContent='⏳ טוען...'; }
+  if(appendBtn) { appendBtn.disabled=true; }
+
+  if(mode === 'replace') {
+    const snap = await getDocs(collection(db,'people'));
+    if(snap.docs.length > 0) {
+      const delBatch = writeBatch(db);
+      snap.docs.forEach(d=>delBatch.delete(d.ref));
+      await delBatch.commit();
+    }
+  }
+
+  const batch=writeBatch(db); let count=0;
+  _pendingRows.forEach((r,i)=>{
+    if(!r.name) return;
+    const id='p_'+(r.tz||r.name).replace(/\s+/g,'_')+'_'+Date.now()+'_'+i;
+    const finalTz = (r.tz||'').length===8 ? '0'+r.tz : (r.tz||'');
+    batch.set(doc(db,'people',id),{
+      index:r.index, tz:finalTz, name:r.name, age:r.age,
+      street:r.street, houseNum:r.houseNum, apt:r.apt, address:r.address,
+      phone:r.phone, phonesExtra:r.phonesExtra, phoneWelfare:r.phoneWelfare,
+    });
+    count++;
+  });
+  await batch.commit();
+  _pendingRows=[];
+  document.getElementById('importPreview').style.display='none';
+  showToast(`✅ יובאו ${count} אנשים בהצלחה!`);
+  switchTab('dashboard');
+}
+
+function validateRows(rows) {
+  const errors = [], warnings = [];
+  const tzSeen = new Set();
+  rows.forEach((r,i)=>{
+    if(!r.name) errors.push(`שורה ${r._line}: חסר שם מלא`);
+    if(!r.tz) warnings.push(`שורה ${r._line} (${r.name||'?'}): חסרה ת"ז`);
+    else if(r.tz.length!==9||!/^\d+$/.test(r.tz)) warnings.push(`שורה ${r._line} (${r.name}): ת"ז לא תקינה (${r.tz})`);
+    if(r.tz && tzSeen.has(r.tz)) errors.push(`שורה ${r._line}: ת"ז ${r.tz} מופיעה פעמיים`);
+    if(r.tz) tzSeen.add(r.tz);
+  });
+  return {errors, warnings};
+}
+
+window.handleImport = async function(e) {
+  const file = e.target.files[0]; if(!file) return;
+
+  // Try UTF-8 first, fallback to Windows-1255 (Hebrew Excel default)
+  let text = await file.text();
+  if(text.includes('�') || /[\x00-\x08\x0E-\x1F]/.test(text.substring(0,200))) {
+    // Try Windows-1255
+    const buf = await file.arrayBuffer();
+    try { text = new TextDecoder('windows-1255').decode(buf); } catch(e) {}
+  }
+  // Also handle UTF-8 BOM
+  text = text.replace(/^\uFEFF/, '');
+
+  const rows = parseCSVRows(text);
+  if(!rows.length){ showToast('⚠️ לא נמצאו שורות תקינות בקובץ'); e.target.value=''; return; }
+  _pendingRows = rows;
+  showPreview(rows);
+  e.target.value='';
+}
+
+window.handleImportWithPreview = window.handleImport;
+
+function showPreview(rows) {
+  const {errors, warnings} = validateRows(rows);
+  const preview = document.getElementById('importPreview');
+  const errDiv = document.getElementById('importErrors');
+
+  if(errors.length || warnings.length) {
+    errDiv.style.display='block';
+    errDiv.innerHTML = [
+      ...errors.map(e=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--absent-light);border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;"><span>🔴</span>${e}</div>`),
+      ...warnings.map(w=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--warn-light);border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;"><span>🟡</span>${w}</div>`)
+    ].join('');
+  } else {
+    errDiv.style.display='none';
+    errDiv.innerHTML='';
+  }
+
+  const hasErrors = errors.length > 0;
+  const rb = document.getElementById('confirmReplaceBtn');
+  const ab = document.getElementById('confirmAppendBtn');
+  if(rb){ rb.disabled=hasErrors; rb.style.opacity=hasErrors?'0.4':'1'; }
+  if(ab){ ab.disabled=hasErrors; ab.style.opacity=hasErrors?'0.4':'1'; }
+
+  document.getElementById('previewStats').innerHTML =
+    `<span style="color:var(--present);font-weight:600;">${rows.length} שורות</span>` +
+    (errors.length ? ` &nbsp;·&nbsp; <span style="color:var(--absent);font-weight:600;">${errors.length} שגיאות</span>` : '') +
+    (warnings.length ? ` &nbsp;·&nbsp; <span style="color:var(--warn);font-weight:600;">${warnings.length} אזהרות</span>` : '');
+
+  const shown = rows.slice(0,10);
+  document.getElementById('previewBody').innerHTML = shown.map(r => {
+    const hasErr = !r.name || (r.tz && r.tz.length!==9);
+    return `<tr style="${hasErr?'background:var(--absent-light);':''}border-bottom:1px solid var(--border);">
+      <td style="padding:7px 12px;"><span class="idx">${r.index}</span></td>
+      <td style="padding:7px 12px;font-size:12px;${!r.tz?'color:var(--absent);font-weight:600;':''}">${r.tz||'❌ חסר'}</td>
+      <td style="padding:7px 12px;font-weight:600;${!r.name?'color:var(--absent);':''}">${r.name||'❌ חסר'}</td>
+      <td style="padding:7px 12px;color:var(--text2);">${r.age||'—'}</td>
+      <td style="padding:7px 12px;font-size:12px;color:var(--text2);">${r.address||r.street||'—'}</td>
+      <td style="padding:7px 12px;font-size:12px;color:var(--text2);">${r.phone||'—'}</td>
+      <td style="padding:7px 12px;"><span class="badge badge-unknown" style="font-size:10px;">לא מולא</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('previewRowCount').textContent =
+    rows.length>10 ? `מוצגות 10 מתוך ${rows.length} שורות` : '';
+
+  preview.style.display='block';
+  preview.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+window.cancelImport = function() {
+  _pendingRows=[];
+  document.getElementById('importPreview').style.display='none';
+  document.getElementById('csvInput2').value='';
+}
+
+window.downloadTemplate = function() {
+  const rows = [
+    'תעודת זהות,שם מלא,גיל,שם רחוב,מספר בית,מספר דירה,כתובת טקסט חופשי,טלפון פרטי,טלפונים נוספים,טלפון רווחה',
+    '123456789,ישראל ישראלי,45,הרצל,12,3,הרצל 12 דירה 3,050-1234567,,',
+    '987654321,שרה לוי,32,ביאליק,5,,ביאליק 5,052-9876543,,',
+    '111222333,דוד כהן,67,רוטשילד,8,2,רוטשילד 8 דירה 2,054-1112223,,',
+  ].join('\n');
+  const blob=new Blob(['\uFEFF'+rows],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='תבנית_ייבוא_מֶסֶר.csv';a.click();
+  showToast('⬇️ קובץ תבנית הורד');
+}
+
+window.loadDemo=async function(){
+  const demo=[
+    {index:'1',tz:'123456789',name:'ישראל ישראלי',age:'45',street:'הרצל',houseNum:'12',apt:'3',address:'הרצל 12 דירה 3',phone:'050-1234567'},
+    {index:'2',tz:'987654321',name:'שרה לוי',age:'32',street:'ביאליק',houseNum:'5',apt:'',address:'ביאליק 5',phone:'052-9876543'},
+    {index:'3',tz:'111222333',name:'דוד כהן',age:'67',street:'רוטשילד',houseNum:'8',apt:'2',address:'רוטשילד 8 דירה 2',phone:'054-1112223'},
+    {index:'4',tz:'444555666',name:'רחל מזרחי',age:'28',street:'אלנבי',houseNum:'22',apt:'',address:'אלנבי 22',phone:'053-4445556'},
+    {index:'5',tz:'777888999',name:'יוסף פרץ',age:'55',street:'בן גוריון',houseNum:'3',apt:'1',address:'בן גוריון 3 דירה 1',phone:'050-7778889'},
+    {index:'6',tz:'112233445',name:'מרים אברהם',age:'41',street:'ויצמן',houseNum:'17',apt:'',address:'ויצמן 17',phone:'052-1122334'},
+    {index:'7',tz:'556677889',name:'אברהם בן-דוד',age:'73',street:'הנשיא',houseNum:'9',apt:'4',address:'הנשיא 9 דירה 4',phone:'054-5566778'},
+    {index:'8',tz:'998877665',name:'לאה גולן',age:'19',street:'שינקין',houseNum:'31',apt:'',address:'שינקין 31',phone:'053-9988776'},
+  ];
+  const batch=writeBatch(db);
+  demo.forEach((p,i)=>batch.set(doc(db,'people','demo_'+i),p));
+  await batch.commit();
+  showToast('🎲 נטענו 8 אנשים לדוגמה');
+}
+
+window.clearAll=async function(){
+  for(const c of['people','shatil','meser','final']){
+    const snap=await getDocs(collection(db,c));
+    const batch=writeBatch(db);
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+  }
+  showToast('🗑️ כל הנתונים נמחקו');
+}
+
+window.exportCSV=function(){
+  const rows=[['אינדקס','ת"ז','שם מלא','גיל','כתובת','טלפון','סטטוס שטח','מדווח שטח','הערות שטח','סטטוס מסר','מדווח מסר','הערות מסר','התאמה','סטטוס סופי','מקור','מזין']];
+  S.people.forEach(p=>{
+    const sh=S.shatil[p.id]||{},ms=S.meser[p.id]||{},f=computeFinal(p.id);
+    rows.push([p.index,p.tz,p.name,p.age,p.address,p.phone,sh.status||'',sh.reporter||'',sh.notes||'',ms.status||'',ms.reporter||'',ms.notes||'',f.match||'',f.status,f.source==='manual'?'ידני':'אוטומטי',f.editor||'']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='meser_results.csv';a.click();
+}
+
+window.switchTab=function(tab){
+  window._similarFilter = null; // clear similarity filter on tab switch
+  // re-render current visible tabs to reflect cleared filter
+  if(S.people.length) { renderShatil(); renderMeser(); renderSummary(); }
+  const names=['shatil','meser','summary','diyuvim','dashboard','chat','setup','log','admin'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===tab));
+  document.querySelectorAll('.tab-content').forEach(c=>{
+    c.classList.remove('active');
+    c.style.display='';
+  });
+  const el = document.getElementById('tab-'+tab);
+  if(tab==='chat') { el.style.display='flex'; el.style.flexDirection='column'; el.style.height='calc(100vh - 110px)'; el.style.overflow='hidden'; }
+  else el.classList.add('active');
+  if(tab==='dashboard') renderDashboard2();
+  if(tab==='diyuvim') renderDiyuvim();
+  if(tab==='admin') renderAdminTab();
+  if(tab==='log') renderLogTab();
+  if(tab==='dashboard') { renderStreetBreakdown(); renderProgressChart(); }
+  setTimeout(applyEditLocksAfterRender, 200);
+  if(tab==='chat') {
+    const badge = document.getElementById('chatBadge');
+    if(badge) badge.style.display='none';
+    _chatUnread = 0;
+    setTimeout(()=>scrollChat(), 50);
+  }
+}
+
+// ── ADD PERSON MANUALLY ──────────────────────────────────────────────
+window.showAddRow = function(tab) {
+  document.getElementById('addRow-'+tab).style.display = 'block';
+  const focusEl = document.getElementById('new-'+tab+'-firstName') ||
+                  document.getElementById('new-'+tab+'-name');
+  if(focusEl) focusEl.focus();
+}
+window.hideAddRow = function(tab) {
+  document.getElementById('addRow-'+tab).style.display = 'none';
+  ['tz','name','firstName','lastName','age','street','houseNum','apt','phone','reporter','operator','notes'].forEach(f=>{
+    const el = document.getElementById('new-'+tab+'-'+f);
+    if(el) el.value = '';
+  });
+  ['err','warn'].forEach(t=>{
+    const el = document.getElementById('addRow-'+tab+'-'+t);
+    if(el) { el.style.display='none'; el.textContent=''; }
+  });
+  if(tab==='diyuvim') { renderDiyuvim(); return; }
+  if(tab==='summary') { renderSummary(); return; }
+  window._duplicateIds = null;
+  const searchId = tab==='shatil' ? 'shatilSearch' : 'meserSearch';
+  const searchEl = document.getElementById(searchId);
+  if(searchEl) searchEl.value = '';
+  if(tab==='shatil') renderShatil(); else if(tab==='summary') renderSummary(); else renderMeser();
+}
+
+window.saveNewPerson = async function(tab) {
+  const g = f => (document.getElementById('new-'+tab+'-'+f)?.value||'').trim();
+  const rawTz = g('tz').replace(/[^0-9]/g,'');
+  const tz = rawTz.length===8 ? '0'+rawTz : rawTz;
+  const name = g('name');
+  const reporter = g('reporter'), operator = g('operator');
+  const errEl = document.getElementById('addRow-'+tab+'-err');
+  const warnEl = document.getElementById('addRow-'+tab+'-warn');
+
+  // reset messages
+  errEl.style.display='none'; errEl.textContent='';
+  warnEl.style.display='none'; warnEl.textContent='';
+
+  // Hard validations
+  const errors = [];
+  if(!name) errors.push('שם מלא הוא שדה חובה');
+  if(!reporter) errors.push('שם מדווח הוא שדה חובה');
+  if(!operator) errors.push('איש הצוות הוא שדה חובה');
+  if(errors.length) {
+    errEl.textContent = '⚠️ ' + errors.join(' | ');
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Duplicate tz — hard block
+  if(tz && S.people.find(p=>p.tz===tz)) {
+    errEl.textContent = `⛔ ת"ז ${tz} כבר קיימת ברשימה`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // ── Smart duplicate name detection ──
+  function normalize(s) {
+    return s.trim()
+      .replace(/ע/g,'א')
+      .replace(/ח/g,'כ')
+      .replace(/ט/g,'ת')
+      .replace(/יי/g,'י')
+      .replace(/אי/g,'י')
+      .replace(/הי/g,'י')
+      .replace(/\s+/g,' ')
+      .toLowerCase();
+  }
+  function sortedWords(s) { return normalize(s).split(/\s+/).sort().join(' '); }
+  function levenshtein(a, b) {
+    const m=a.length, n=b.length;
+    const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+    for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+      dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    return dp[m][n];
+  }
+  function wordsMatch(a, b) {
+    // Check if all words in 'a' appear (approximately) in 'b's words
+    const wa = normalize(a).split(/\s+/);
+    const wb = normalize(b).split(/\s+/);
+    return wa.every(w => wb.some(v => levenshtein(w,v) <= 1));
+  }
+  function isSimilar(a, b) {
+    if(!a || !b) return false;
+    const na=normalize(a), nb=normalize(b);
+    if(na===nb) return true;
+    if(sortedWords(a)===sortedWords(b)) return true; // reversed words
+    if(wordsMatch(a,b) || wordsMatch(b,a)) return true; // all words match approximately
+    // Full string distance for short names
+    const maxLen = Math.max(na.length, nb.length);
+    if(maxLen > 0 && levenshtein(na,nb) / maxLen <= 0.25) return true;
+    return false;
+  }
+
+  const similarPeople = S.people.filter(p => isSimilar(p.name||'', name));
+  if(similarPeople.length > 0) {
+    const names = [...new Set(similarPeople.map(p=>p.name))].map(n=>`<strong>${n}</strong>`).join(', ');
+    const countText = similarPeople.length === 1
+      ? `קיים אדם אחד בעל שם דומה: ${names}`
+      : `קיימים ${similarPeople.length} אנשים בעלי שם דומה: ${names}`;
+
+    // Filter current tab to show all similar people
+    // Store their IDs for custom filtering
+    window._duplicateIds = new Set(similarPeople.map(p=>p.id));
+
+    const searchId = tab==='shatil' ? 'shatilSearch' : tab==='summary' ? 'summarySearch' : 'meserSearch';
+    const searchEl = document.getElementById(searchId);
+    if(searchEl) searchEl.value = '';
+
+    // Re-render with duplicate highlight
+    if(tab==='shatil') renderShatilDuplicates();
+    else if(tab==='summary') renderSummaryDuplicates();
+    else renderMeserDuplicates();
+
+    warnEl.innerHTML = `⚠️ ${countText} — מוצגים ברשימה למטה.
+      <button class="btn btn-warn btn-sm" style="margin-right:8px;" onclick="confirmAddPerson('${tab}')">הוסף בכל זאת</button>
+      <button class="btn btn-ghost btn-sm" onclick="cancelDuplicateAdd('${tab}')">בטל</button>`;
+    warnEl.style.display = 'block';
+    return;
+  }
+
+  await doAddPerson(tab);
+}
+
+window.confirmAddPerson = async function(tab) {
+  document.getElementById('addRow-'+tab+'-warn').style.display = 'none';
+  window._duplicateIds = null;
+  await doAddPerson(tab);
+  const searchId = tab==='shatil' ? 'shatilSearch' : 'meserSearch';
+  const el = document.getElementById(searchId);
+  if(el) el.value = '';
+  if(tab==='shatil') renderShatil(); else if(tab==='summary') renderSummary(); else renderMeser();
+}
+
+window.cancelDuplicateAdd = function(tab) {
+  document.getElementById('addRow-'+tab+'-warn').style.display = 'none';
+  window._duplicateIds = null;
+  const searchId = tab==='shatil' ? 'shatilSearch' : 'meserSearch';
+  const searchEl = document.getElementById(searchId);
+  if(searchEl) searchEl.value = '';
+  if(tab==='shatil') renderShatil(); else if(tab==='summary') renderSummary(); else renderMeser();
+}
+
+function renderShatilDuplicates() {
+  const ids = window._duplicateIds;
+  if(!ids) return renderShatil();
+  const statusOpts = ['','מאותר חי','שוהה במסר','פונה לבית חולים','התפנה עצמאית למשפחה/חברים','לכוד שנוצר עמו קשר','נעדר','חלל','לא היה בארוע'];
+  const people = S.people.filter(p=>ids.has(p.id));
+  const body = document.getElementById('shatilBody');
+  const empty = document.getElementById('shatilEmpty');
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML = people.map((p,i)=>{
+    const sh=S.shatil[p.id]||{};
+    const phoneFull=[p.phone,p.phonesExtra,p.phoneWelfare].filter(Boolean).join(' | ')||'—';
+    const selOpts=statusOpts.map(o=>`<option value="${o}" ${sh.status===o?'selected':''}>${o||'— לא מולא —'}</option>`).join('');
+    const rowClass=!sh.status?'':(sh.status==='נעדר'||sh.status==='חלל')?'row-red':'row-green';
+    return `<tr class="${rowClass}" style="outline:2px solid var(--warn);outline-offset:-2px;">
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneFull}</td>
+      <td style="text-align:center;">${p.id?.startsWith('manual_')?'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--absent);" title="הוסף ידנית"></span>':''}</td>
+      <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
+      <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
+      <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
+      <td><input class="inline-input" value="${sh.operator||''}" placeholder="איש הצוות" onchange="inlineSave('shatil','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderMeserDuplicates() {
+  const ids = window._duplicateIds;
+  if(!ids) return renderMeser();
+  const statusOpts = ['','שוהה במסר','פונה לבית חולים','נעדר','חלל','לא היה בארוע'];
+  const people = S.people.filter(p=>ids.has(p.id));
+  const body = document.getElementById('meserBody');
+  const empty = document.getElementById('meserEmpty');
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML = people.map((p,i)=>{
+    const ms=S.meser[p.id]||{};
+    const phoneFull2=[p.phone,p.phonesExtra,p.phoneWelfare].filter(Boolean).join(' | ')||'—';
+    const selOpts=statusOpts.map(o=>`<option value="${o}" ${ms.status===o?'selected':''}>${o||'— לא מולא —'}</option>`).join('');
+    const rowClass2=!ms.status?'':(ms.status==='חלל'||ms.status==='נעדר')?'row-red':'row-green';
+    return `<tr class="${rowClass2}" style="outline:2px solid var(--warn);outline-offset:-2px;">
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneFull2}</td>
+      <td style="text-align:center;">${p.id?.startsWith('manual_')?'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--absent);" title="הוסף ידנית"></span>':''}</td>
+      <td><select class="inline-select" onchange="inlineSave('meser','${p.id}','status',this.value)">${selOpts}</select></td>
+      <td><input class="inline-input" value="${ms.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('meser','${p.id}','reporter',this.value)"></td>
+      <td><input class="inline-input" value="${ms.operator||''}" placeholder="איש הצוות" onchange="inlineSave('meser','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${ms.notes||''}" placeholder="הערות" onchange="inlineSave('meser','${p.id}','notes',this.value)" style="width:150px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSummaryDuplicates() {
+  const ids = window._duplicateIds;
+  if(!ids) return renderSummary();
+  const people = S.people.filter(p=>ids.has(p.id));
+  const body = document.getElementById('summaryBody');
+  const empty = document.getElementById('summaryEmpty');
+  if(!people.length){body.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  body.innerHTML = people.map((p,i)=>{
+    const sh=S.shatil[p.id]||{}, ms=S.meser[p.id]||{}, f=computeFinal(p.id);
+    const addrDisplay = [p.street, p.houseNum?'מסו '+p.houseNum:'', p.apt?'דירה '+p.apt:''].filter(Boolean).join(' ') || p.address || '—';
+    const phoneDisplay = [p.phone, p.phonesExtra, p.phoneWelfare].filter(Boolean).join(' | ') || '—';
+    const isMismatch = f.match==='לא תואם' && f.source!=='manual' && !S.final[p.id]?.verified;
+    return `<tr class="${isMismatch?'mismatch-row':''}" ${isMismatch?'data-mismatch="1"':''} style="outline:2px solid var(--warn);outline-offset:-2px;">
+      <td><span class="idx">${p.index||i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${p.tz||'—'}</td>
+      <td style="font-weight:600;white-space:nowrap;">${p.name||'—'}</td>
+      <td style="color:var(--text2);">${p.age||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);">${p.street||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.houseNum||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${p.apt||'—'}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${phoneDisplay}</td>
+      <td style="text-align:center;">${p.id?.startsWith('manual_')?'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--absent);"></span>':''}</td>
+      <td class="sep">${sBadge(sh.status)}</td>
+      <td class="sep">${sBadge(ms.status)}</td>
+      <td class="sep">${mBadge(f.match)}</td>
+      <td style="text-align:center;"><input type="checkbox" ${S.final[p.id]?.verified?'checked':''} onchange="toggleVerified('${p.id}',this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:var(--present);"></td>
+      <td style="white-space:nowrap;"><select class="inline-select" onchange="inlineFinal('${p.id}','status',this.value)" style="min-width:190px;">
+        <option value="" ${!S.final[p.id]?.manualStatus?'selected':''}>— אוטומטי (${f.status||'ריק'}) —</option>
+        <option value="מאותר חי" ${S.final[p.id]?.manualStatus==='מאותר חי'?'selected':''}>🟢 מאותר חי</option>
+        <option value="שוהה במסר" ${S.final[p.id]?.manualStatus==='שוהה במסר'?'selected':''}>🔵 שוהה במסר</option>
+        <option value="פונה לבית חולים" ${S.final[p.id]?.manualStatus==='פונה לבית חולים'?'selected':''}>🏥 פונה לבית חולים</option>
+        <option value="התפנה עצמאית למשפחה/חברים" ${S.final[p.id]?.manualStatus==='התפנה עצמאית למשפחה/חברים'?'selected':''}>🏠 התפנה עצמאית</option>
+        <option value="לכוד שנוצר עמו קשר" ${S.final[p.id]?.manualStatus==='לכוד שנוצר עמו קשר'?'selected':''}>📞 לכוד שנוצר עמו קשר</option>
+        <option value="נעדר" ${S.final[p.id]?.manualStatus==='נעדר'?'selected':''}>❓ נעדר</option>
+        <option value="חלל" ${S.final[p.id]?.manualStatus==='חלל'?'selected':''}>⚫ חלל</option>
+        <option value="לא היה בארוע" ${S.final[p.id]?.manualStatus==='לא היה בארוע'?'selected':''}>⚪ לא היה בארוע</option>
+      </select></td>
+      <td><input class="inline-input" value="${f.editor||''}" placeholder='מזין (כ"א)' onchange="inlineFinal('${p.id}','editor',this.value)" style="width:120px;"></td>
+    </tr>`;
+  }).join('');
+}
+
+async function doAddPerson(tab) {
+  const g = f => (document.getElementById('new-'+tab+'-'+f)?.value||'').trim();
+  const tz = g('tz'), name = g('name');
+  const street = g('street'), houseNum = g('houseNum'), apt = g('apt');
+  const reporter = g('reporter'), operator = g('operator');
+  const newIndex = String(S.people.length + 1);
+  const id = 'manual_'+(tz||name).replace(/\s+/g,'_')+'_'+Date.now();
+
+  await setDoc(doc(db,'people',id), {
+    index: newIndex, tz, name,
+    age: g('age'), street, houseNum, apt,
+    address: [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
+    phone: g('phone'), phonesExtra: '', phoneWelfare: '',
+  });
+
+  // Also save reporter/operator to the relevant collection
+  if(reporter || operator) {
+    await setDoc(doc(db, tab, id), { reporter, operator });
+  }
+
+  hideAddRow(tab);
+  showToast(`✅ ${name} נוסף לרשימה`);
+  writeLog('person_added', name, tab);
+}
+
+window.showToast=function(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// ── DIYUVIM (דיווחים נוספים) ──────────────────────────────────────────
+
+const SHEET_ID = '1K3HgmFl32_aeNKvNqivIxkemBy9PEPvw_1nW1KgoX68';
+const SHEET_GID = '977613762';
+
+// Fetch via Google Visualization API — works on HTTPS hosting
+async function fetchSheetRows() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
+  const res = await fetch(url, {signal: AbortSignal.timeout(10000)});
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const raw = await res.text();
+  // Strip JSONP wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+  const jsonStr = raw.replace(/^[\s\S]*?\(/, '').replace(/\);?\s*$/, '');
+  const data = JSON.parse(jsonStr);
+  if(!data.table) throw new Error('No table in response');
+  const cols = data.table.cols.map(c => (c.label || '').trim());
+  const rows = (data.table.rows || []).map(r =>
+    (r.c || []).map(cell => (cell && cell.v != null) ? String(cell.v).trim() : '')
+  );
+  return { cols, rows };
+}
+let _diyuvimSyncInterval = null;
+
+
+window.clearDiyuvimData = async function() {
+  const confirmed = window.confirm('האם אתה בטוח שברצונך למחוק?\nמחיקה תעלים את כל הנתונים המופיעים בטאב זה.');
+  if(!confirmed) return;
+  try {
+    const snap = await getDocs(collection(db,'diyuvim'));
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    showToast('🗑️ כל הנתונים נמחקו');
+  } catch(e) {
+    showToast('⚠️ שגיאה במחיקה');
+    console.error(e);
+  }
+}
+
+window.toggleDiyuvimDone = async function(id, checked) {
+  await setDoc(doc(db,'diyuvim',id), {done: checked}, {merge:true});
+  showToast(checked ? '✅ סומן כטופל' : '↩️ בוטל סימון');
+}
+
+window.saveDiyuvimField = async function(id, field, value) {
+  await setDoc(doc(db,'diyuvim',id), {[field]: value}, {merge:true});
+}
+
+window.saveDiyuvimPerson = async function() {
+  const g = f => (document.getElementById('new-diyuvim-'+f)?.value||'').trim();
+  const firstName = g('firstName'), lastName = g('lastName');
+  const tz = g('tz');
+  const errEl = document.getElementById('addRow-diyuvim-err');
+  errEl.style.display='none';
+
+  if(!firstName || !lastName) {
+    errEl.textContent = 'שם פרטי ושם משפחה הם שדות חובה';
+    errEl.style.display='block'; return;
+  }
+  if(tz && S.people.find(p=>p.tz===tz)) {
+    errEl.textContent = `⛔ ת"ז ${tz} כבר קיימת ברשימה הראשית`;
+    errEl.style.display='block'; return;
+  }
+
+  const name = (firstName + ' ' + lastName).trim();
+  const street = g('street'), houseNum = g('houseNum'), apt = g('apt');
+  const newIndex = String(S.people.length + 1);
+  const id = 'manual_'+(tz||name).replace(/\s+/g,'_')+'_'+Date.now();
+
+  // Add to main people list (same as shatil/meser manual add)
+  await setDoc(doc(db,'people',id), {
+    index: newIndex, tz, name, firstName, lastName,
+    street, houseNum, apt,
+    address: [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
+    phone: g('phone'),
+    phonesExtra: '', phoneWelfare: '',
+  });
+
+  // Also add a reference in diyuvim collection to track origin
+  await setDoc(doc(db,'diyuvim','ref_'+id), {
+    firstName, lastName, tz, street, houseNum, apt,
+    phone: g('phone'), notes: g('notes'),
+    source: 'manual', done: false, peopleId: id,
+    addedAt: new Date().toISOString()
+  });
+
+  hideAddRow('diyuvim');
+  showToast('✅ ' + name + ' נוסף לרשימה הראשית ולדיווחים');
+}
+
+// ── SYNC FROM GOOGLE SHEETS ──
+window.syncDiyuvimNow = async function() {
+  const btn = document.getElementById('syncDiyuvimBtn');
+  const status = document.getElementById('syncStatus');
+  if(btn) { btn.disabled=true; btn.textContent='⏳ מסנכרן...'; }
+  if(status) status.textContent = '';
+  try {
+    const {cols, rows} = await fetchSheetRows();
+    const imported = await _saveSheetRows(cols, rows);
+    const now = new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    if(status) status.textContent = `עודכן ${now} — ${imported} רשומות חדשות`;
+    if(imported > 0) showToast(`📡 ${imported} רשומות חדשות התווספו`);
+    else showToast('✅ הגיליון עדכני — אין רשומות חדשות');
+  } catch(e) {
+    if(status) status.textContent = '⚠️ סנכרון אוטומטי זמין רק אחרי פרסום — השתמש בייבוא CSV';
+    console.error('Sheets sync error:', e);
+  } finally {
+    if(btn) { btn.disabled=false; btn.textContent='🔄 סנכרון אוטומטי'; }
+  }
+}
+
+// ── CSV MANUAL IMPORT (works from file:// before publishing) ──
+window.handleDiyuvimCsvImport = async function(e) {
+  const file = e.target.files[0];
+  if(!file) return;
+  const status = document.getElementById('syncStatus');
+  if(status) status.textContent = '⏳ מייבא...';
+
+  let text = await file.text();
+  // Try Windows-1255 if garbled Hebrew
+  if(text.includes('\uFFFD') || /[\x80-\x9F]/.test(text.substring(0,200))) {
+    const buf = await file.arrayBuffer();
+    try { text = new TextDecoder('windows-1255').decode(buf); } catch(err) {}
+  }
+  text = text.replace(/^\uFEFF/, ''); // remove BOM
+
+  // Parse CSV into cols/rows
+  const lines = text.split('\n').filter(l => l.trim());
+  if(lines.length < 2) { showToast('⚠️ קובץ ריק או לא תקין'); e.target.value=''; return; }
+
+  const parseLine = line => {
+    const res=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  };
+
+  const cols = parseLine(lines[0]);
+  const rows = lines.slice(1).map(l => parseLine(l));
+
+  const imported = await _saveSheetRows(cols, rows);
+  const now = new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  if(status) status.textContent = `יובא ${now} — ${imported} רשומות חדשות`;
+  showToast(imported > 0 ? `📥 ${imported} רשומות יובאו בהצלחה` : '✅ אין רשומות חדשות בקובץ');
+  e.target.value = '';
+}
+
+async function _saveSheetRows(cols, rows) {
+  // Map column names to indices — matches exact Google Form column names
+  const findCol = (...keys) => {
+    for(const k of keys) {
+      const i = cols.findIndex(c => c.includes(k));
+      if(i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const colFirstName = findCol('שם פרטי');
+  const colLastName  = findCol('שם משפחה');
+  const colTz        = findCol('תעודת זהות','ת"ז');
+  const colStreet    = findCol('רחוב');
+  const colApt       = findCol('מספר דירה','דירה');
+  const colPhone     = findCol('מספר טלפון','טלפון');
+  // Extra info fields → notes
+  const colWithWhom  = findCol('עם מי היית');
+  const colNeighbors = findCol('שכנים');
+  // houseNum — all columns containing 'מספר בית'
+  const houseNumCols = cols.reduce((acc, c, i) => {
+    if(c.includes('מספר בית')) acc.push(i);
+    return acc;
+  }, []);
+
+  const existingSheetKeys = new Set(Object.values(S.diyuvim||{}).filter(r=>r.source!=='manual').map(r=>r.sheetRowKey||''));
+  const mainListTzSet = new Set((S.people||[]).map(p=>p.tz).filter(Boolean));
+
+  let imported = 0;
+  const batch = writeBatch(db);
+  let batchCount = 0;
+
+  for(let i=0; i<rows.length; i++) {
+    const row = rows[i];
+    const firstName = colFirstName>=0 ? row[colFirstName]||'' : '';
+    const lastName  = colLastName>=0  ? row[colLastName]||''  : '';
+    if(!firstName && !lastName) continue;
+
+    const tz     = (colTz>=0 ? row[colTz]||'' : '').replace(/[^0-9]/g,'');
+    const street = colStreet>=0 ? row[colStreet]||'' : '';
+    const apt    = colApt>=0    ? row[colApt]||''    : '';
+    const phone  = colPhone>=0  ? row[colPhone]||''  : '';
+
+    // Merge duplicate houseNum columns
+    const houseVals = houseNumCols.map(ci=>(row[ci]||'').trim()).filter(Boolean);
+    const houseNum  = [...new Set(houseVals)].join(', ');
+
+    const rowKey = tz || (firstName+'_'+lastName+'_'+street);
+    if(existingSheetKeys.has(rowKey)) continue;
+
+    const inMainList = !!(tz && mainListTzSet.has(tz));
+    const safeKey = rowKey.replace(/\s+/g,'_').replace(/[^\w\u0590-\u05FF]/g,'');
+    const id = 'diyu_sheet_' + safeKey + '_' + i;
+
+    // Build notes from extra Google Form fields
+    const noteParts = [];
+    if(colWithWhom>=0 && row[colWithWhom]) noteParts.push('עם מי: '+row[colWithWhom]);
+    if(colNeighbors>=0 && row[colNeighbors]) noteParts.push('שכנים: '+row[colNeighbors]);
+    const notes = noteParts.join('\n');
+
+    batch.set(doc(db,'diyuvim',id), {
+      firstName, lastName, tz, street, houseNum, apt, phone, notes,
+      source: 'sheet', done: false, sheetRowKey: rowKey,
+      inMainList, addedAt: new Date().toISOString()
+    });
+    imported++;
+    batchCount++;
+    if(batchCount >= 400) { await batch.commit(); batchCount=0; }
+  }
+  if(batchCount > 0) await batch.commit();
+  return imported;
+}
+
+// Auto-sync every 2 minutes when diyuvim tab is active
+window._startDiyuvimSync = function() {
+  if(_diyuvimSyncInterval) return;
+  syncDiyuvimNow();
+  _diyuvimSyncInterval = setInterval(()=>{
+    const activeTab = document.querySelector('.tab.active')?.dataset?.tab;
+    // sync regardless of tab — just quietly
+    syncDiyuvimNow();
+  }, 2 * 60 * 1000);
+}
+
+// Start sync on load
+// _startDiyuvimSync is called after auth in startFirestoreListeners()
+
+// ── JUMP TO STATUS FROM DASHBOARD ──
+window.jumpToStatus = function(tab, filterId, status) {
+  // switch to tab
+  switchTab(tab);
+  // set filter
+  const filterEl = document.getElementById(filterId);
+  if(filterEl) { filterEl.value = status; }
+  // trigger render
+  if(tab==='shatil') renderShatil();
+  else if(tab==='meser') renderMeser();
+  else renderSummary();
+  // scroll to first matching row after render
+  setTimeout(()=>{
+    const tableWrap = document.querySelector('#tab-'+tab+' .table-wrap');
+    const firstRow = document.querySelector('#tab-'+tab+' tbody tr');
+    if(firstRow && tableWrap) {
+      tableWrap.scrollTo({ top: 0, behavior: 'smooth' });
+      firstRow.style.outline = '2px solid var(--accent)';
+      firstRow.style.outlineOffset = '-2px';
+      setTimeout(()=>{ firstRow.style.outline=''; firstRow.style.outlineOffset=''; }, 1500);
+    }
+  }, 100);
+}
+
+// ── SIMILARITY FILTER ──
+// Tracks which person's name we're currently filtering by similarity
+window._similarFilter = null; // { name, ids: Set }
+
+// Shared similarity helpers (also used in duplicate detection)
+function _normalize(s) {
+  return (s||'').trim()
+    .replace(/ע/g,'א').replace(/ח/g,'כ').replace(/ט/g,'ת')
+    .replace(/יי/g,'י').replace(/אי/g,'י').replace(/הי/g,'י')
+    .replace(/\s+/g,' ').toLowerCase();
+}
+function _levenshtein(a, b) {
+  const m=a.length, n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+function _wordsMatch(a, b) {
+  const wa=_normalize(a).split(/\s+/), wb=_normalize(b).split(/\s+/);
+  return wa.every(w=>wb.some(v=>_levenshtein(w,v)<=1));
+}
+function _isSimilar(a, b) {
+  if(!a||!b) return false;
+  const na=_normalize(a), nb=_normalize(b);
+  if(na===nb) return true;
+  const wa=na.split(/\s+/).sort().join(' '), wb=nb.split(/\s+/).sort().join(' ');
+  if(wa===wb) return true;
+  if(_wordsMatch(a,b)||_wordsMatch(b,a)) return true;
+  const maxLen=Math.max(na.length,nb.length);
+  if(maxLen>0&&_levenshtein(na,nb)/maxLen<=0.3) return true;
+  return false;
+}
+
+window.toggleSimilarFilter = function(personName, tab) {
+  // If already filtering by this name — clear
+  if(window._similarFilter && window._similarFilter.name === personName) {
+    window._similarFilter = null;
+  } else {
+    const ids = new Set(S.people.filter(p=>_isSimilar(p.name||'', personName)).map(p=>p.id));
+    window._similarFilter = { name: personName, ids };
+  }
+  if(tab==='shatil') renderShatil();
+  else if(tab==='meser') renderMeser();
+  else renderSummary();
+}
+
+// ── MISMATCH NAVIGATOR ──
+let _mismatchIdx = -1;
+window.nextMismatch = function() {
+  const tableWrap = document.querySelector('#tab-summary .table-wrap');
+  const rows = Array.from(document.querySelectorAll('#summaryBody tr[data-mismatch="1"]'));
+  if(!rows.length) { showToast('אין סתירות ברשימה'); return; }
+  _mismatchIdx = (_mismatchIdx + 1) % rows.length;
+  const row = rows[_mismatchIdx];
+  // scroll to row
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // flash highlight
+  row.style.outline = '2px solid var(--mismatch)';
+  row.style.outlineOffset = '-2px';
+  setTimeout(() => { row.style.outline = ''; row.style.outlineOffset = ''; }, 1500);
+  // update nav indicator
+  const nav = document.getElementById('mismatchNav');
+  if(nav) nav.textContent = `(${_mismatchIdx+1}/${rows.length})`;
+}
+// ══════════════════════════════════════════════════
+// ── DIYUVIM TAB — דיווחים נוספים ──────────────────
+// ══════════════════════════════════════════════════
+
+// Firestore listener for diyuvim collection — started after auth
+const diyuvimCol = collection(db, 'diyuvim');
+function startDiyuvimListener() { return onSnapshot(diyuvimCol, snap => {
+  S.diyuvim = {};
+  snap.docs.forEach(d => { S.diyuvim[d.id] = { id: d.id, ...d.data() }; });
+  if(document.querySelector('#tab-diyuvim.active') || document.querySelector('#tab-diyuvim')?.style.display !== 'none') {
+    renderDiyuvim();
+  }
+  // update badge
+  const total = Object.keys(S.diyuvim).length;
+  const undone = Object.values(S.diyuvim).filter(r => !r.done).length;
+  const badge = document.getElementById('diyuvimBadge');
+  if(badge) {
+    if(undone > 0) { badge.style.display='inline'; badge.textContent=undone; }
+    else badge.style.display='none';
+  }
+  const totalEl = document.getElementById('diyuvimTotal'); if(totalEl) totalEl.textContent = total;
+  const doneEl = document.getElementById('diyuvimDone'); if(doneEl) doneEl.textContent = Object.values(S.diyuvim).filter(r=>r.done).length;
+}); }
+S.diyuvim = S.diyuvim || {};
+
+// ── RENDER ──
+window.renderDiyuvim = function() {
+  const s = (document.getElementById('diyuvimSearch')||{value:''}).value.trim().toLowerCase();
+  const sf = (document.getElementById('diyuvimFilter')||{value:''}).value;
+  let rows = Object.values(S.diyuvim||{});
+  if(sf === 'טופל') rows = rows.filter(r => r.done);
+  else if(sf === 'ממתין') rows = rows.filter(r => !r.done);
+
+  if(s) rows = rows.filter(r =>
+    (r.firstName||'').includes(s)||(r.lastName||'').includes(s)||
+    (r.tz||'').includes(s)||(r.phone||'').includes(s)||
+    (r.street||'').includes(s)
+  );
+
+
+  // sort by index/timestamp
+  rows.sort((a,b)=>(a.rowIndex||0)-(b.rowIndex||0)||(a.createdAt||0)-(b.createdAt||0));
+
+  const count = document.getElementById('diyuvimCount');
+  if(count) count.textContent = Object.keys(S.diyuvim||{}).length;
+  const body = document.getElementById('diyuvimBody');
+  const empty = document.getElementById('diyuvimEmpty');
+  if(!body) return;
+  if(!rows.length) { body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+
+  body.innerHTML = rows.map((r,i) => {
+    const srcBadge = r.source==='sheet'
+      ? `<span class="badge" style="background:#eff4ff;color:var(--accent);border:1px solid #bfdbfe;font-size:10px;">📊 גיליון</span>`
+      : `<span class="badge" style="background:var(--warn-light);color:var(--warn);border:1px solid #fde68a;font-size:10px;">✏️ ידני</span>`;
+    return `<tr class="${r.done?'row-green':''}">
+      <td><span class="idx">${i+1}</span></td>
+      <td style="font-size:12px;color:var(--text2);">${r.tz||'—'}</td>
+      <td style="font-weight:600;">${escapeHtml(r.firstName||'—')}</td>
+      <td style="font-weight:600;">${escapeHtml(r.lastName||'—')}</td>
+      <td style="font-size:12px;color:var(--text2);">${escapeHtml(r.street||'—')}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${escapeHtml(r.houseNum||'—')}</td>
+      <td style="font-size:12px;color:var(--text2);text-align:center;">${escapeHtml(r.apt||'—')}</td>
+      <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${escapeHtml(r.phone||'—')}</td>
+      <td><textarea class="inline-input" placeholder="הערות" onchange="diyuvimSaveField('${r.id}','notes',this.value)" style="width:220px;min-height:52px;resize:vertical;font-size:12px;">${escapeHtml(r.notes||'')}</textarea></td>
+      <td style="text-align:center;">
+        <input type="checkbox" ${r.done?'checked':''} onchange="diyuvimToggleDone('${r.id}',this.checked)"
+          style="width:20px;height:20px;cursor:pointer;accent-color:var(--present);">
+      </td>
+      <td style="text-align:center;">${srcBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── TOGGLE DONE ──
+window.diyuvimToggleDone = async function(id, val) {
+  await setDoc(doc(db,'diyuvim',id), { done: val }, { merge: true });
+}
+
+// ── SAVE FIELD ──
+window.diyuvimSaveField = async function(id, field, val) {
+  await setDoc(doc(db,'diyuvim',id), { [field]: val }, { merge: true });
+}
+
+// ── ADD MANUALLY ──
+window.saveNewDiyuvim = async function() {
+  const g = f => (document.getElementById('new-diyuvim-'+f)?.value||'').trim();
+  const firstName = g('firstName'), lastName = g('lastName');
+  const errEl = document.getElementById('addRow-diyuvim-err');
+  errEl.style.display='none';
+  if(!firstName && !lastName) { errEl.textContent='יש להזין לפחות שם פרטי או שם משפחה'; errEl.style.display='block'; return; }
+  const id = 'manual_diy_'+(g('tz')||firstName+'_'+lastName).replace(/\s+/g,'_')+'_'+Date.now();
+  await setDoc(doc(db,'diyuvim',id), {
+    tz: g('tz'), firstName, lastName,
+    street: g('street'), houseNum: g('houseNum'), apt: g('apt'),
+    phone: g('phone'), notes: g('notes'),
+    source: 'manual', done: false, createdAt: Date.now(), rowIndex: 99999
+  });
+  hideAddRow('diyuvim');
+  showToast(`✅ ${firstName} ${lastName} נוסף לדיווחים`);
+}
+
+// ── SHEET SYNC ──
+let _sheetSyncTimer = null;
+let _sheetKnownRows = 0; // how many rows we already have from sheet
+
+function getSavedSheetUrl() { try { return localStorage.getItem('meser_sheet_url')||''; } catch(e){return '';} }
+function getSavedSheetInterval() { try { return parseInt(localStorage.getItem('meser_sheet_interval')||'5'); } catch(e){return 5;} }
+
+window.openSheetSettings = function() {
+  document.getElementById('sheetCsvUrl').value = getSavedSheetUrl();
+  document.getElementById('sheetSyncInterval').value = String(getSavedSheetInterval());
+  document.getElementById('sheetSettingsStatus').style.display='none';
+  document.getElementById('sheetSettingsModal').classList.add('open');
+}
+
+window.saveSheetSettings = async function() {
+  const url = document.getElementById('sheetCsvUrl').value.trim();
+  const interval = parseInt(document.getElementById('sheetSyncInterval').value);
+  const statusEl = document.getElementById('sheetSettingsStatus');
+  if(!url) { statusEl.textContent='⚠️ יש להזין כתובת CSV'; statusEl.style.color='var(--absent)'; statusEl.style.display='block'; return; }
+
+  try {
+    localStorage.setItem('meser_sheet_url', url);
+    localStorage.setItem('meser_sheet_interval', String(interval));
+  } catch(e) {}
+
+  statusEl.textContent='🔄 בודק חיבור...'; statusEl.style.color='var(--text2)'; statusEl.style.display='block';
+  const ok = await fetchSheetData(url);
+  if(ok) {
+    statusEl.textContent='✅ חובר בהצלחה! נתונים נטענו.'; statusEl.style.color='var(--present)';
+    startSheetSync(url, interval);
+    setTimeout(()=>closeModal(), 1500);
+  } else {
+    statusEl.textContent='❌ לא ניתן לגשת לגיליון. ודא שפרסמת אותו כ-CSV ציבורי.'; statusEl.style.color='var(--absent)';
+  }
+}
+
+window.disconnectSheet = function() {
+  try { localStorage.removeItem('meser_sheet_url'); localStorage.removeItem('meser_sheet_interval'); } catch(e){}
+  if(_sheetSyncTimer) { clearInterval(_sheetSyncTimer); _sheetSyncTimer=null; }
+  setSyncStatus('off');
+  closeModal();
+  showToast('🔌 הגיליון נותק');
+}
+
+function setSyncStatus(state, lastTime) {
+  const dot = document.getElementById('diyuvimSyncDot');
+  const txt = document.getElementById('diyuvimSyncText');
+  if(!dot||!txt) return;
+  if(state==='on') { dot.style.background='var(--present)'; txt.textContent='מחובר' + (lastTime?' · עודכן '+lastTime:''); }
+  else if(state==='syncing') { dot.style.background='var(--warn)'; txt.textContent='מסנכרן...'; }
+  else if(state==='error') { dot.style.background='var(--absent)'; txt.textContent='שגיאת חיבור'; }
+  else { dot.style.background='var(--text3)'; txt.textContent='לא מחובר לגיליון'; }
+}
+
+function startSheetSync(url, intervalMin) {
+  if(_sheetSyncTimer) clearInterval(_sheetSyncTimer);
+  if(!intervalMin || intervalMin===0) return;
+  _sheetSyncTimer = setInterval(()=>fetchSheetData(url), intervalMin * 60 * 1000);
+}
+
+// ══════════════════════════════════════════════════
+// ── AUTH FUNCTIONS ─────────────────────────────────
+// ══════════════════════════════════════════════════
+
+window._realShowAuthScreen = window.showAuthScreen = function(screen) {
+  const overlay = document.getElementById('authOverlay');
+  if(overlay) overlay.style.display = 'flex';
+  ['authLogin','authRegister','authPending'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+  const target = screen==='login' ? 'authLogin' : screen==='register' ? 'authRegister' : 'authPending';
+  const el = document.getElementById(target);
+  if(el) el.style.display = 'block';
+}
+
+window.hideAuthScreen = function() {
+  const overlay = document.getElementById('authOverlay');
+  if(overlay) overlay.style.display = 'none';
+}
+
+window._realDoLogin = window.doLogin = async function() {
+  const username = document.getElementById('authEmail')?.value.trim().toLowerCase().replace(/\s+/g,'_');
+  const password = document.getElementById('authPassword')?.value;
+  const errEl = document.getElementById('authError');
+  if(!username || !password) { errEl.textContent='נא למלא שם משתמש וסיסמה'; errEl.style.display='block'; return; }
+  errEl.style.display='none';
+  // Convert username to fake email for Firebase
+  const fakeEmail = username + '@meserkm.local';
+  try {
+    await signInWithEmailAndPassword(auth, fakeEmail, password);
+  } catch(e) {
+    const msgs = {
+      'auth/invalid-credential': 'שם משתמש או סיסמה שגויים',
+      'auth/user-not-found': 'משתמש לא נמצא',
+      'auth/wrong-password': 'סיסמה שגויה',
+      'auth/too-many-requests': 'יותר מדי ניסיונות — נסה שוב מאוחר יותר'
+    };
+    errEl.textContent = msgs[e.code] || 'שגיאה בכניסה: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+window._realDoRegister = window.doRegister = async function() {
+  const username = (document.getElementById('regUsername')?.value.trim()||'').toLowerCase().replace(/\s+/g,'_');
+  const password = document.getElementById('regPassword')?.value;
+  const name = document.getElementById('regName')?.value.trim();
+  const team = document.getElementById('regTeam')?.value;
+  const notes = document.getElementById('regNotes')?.value.trim();
+  const errEl = document.getElementById('regError');
+  errEl.style.display='none';
+
+  if(!username || !password || !name || !team) {
+    errEl.textContent = 'נא למלא את כל השדות החובה'; errEl.style.display='block'; return;
+  }
+  if(!/^[a-zA-Z0-9_א-ת]+$/.test(username)) {
+    errEl.textContent = 'שם משתמש יכול להכיל אותיות, מספרים וקו תחתון בלבד'; errEl.style.display='block'; return;
+  }
+  const passwordConfirm = document.getElementById('regPasswordConfirm')?.value;
+  if(password.length < 6) {
+    errEl.textContent = 'סיסמה חייבת להכיל לפחות 6 תווים'; errEl.style.display='block'; return;
+  }
+  if(password !== passwordConfirm) {
+    errEl.textContent = 'הסיסמאות אינן תואמות'; errEl.style.display='block'; return;
+  }
+  const fakeEmail = username + '@meserkm.local';
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, fakeEmail, password);
+    try {
+      await setDoc(doc(db,'users',cred.user.uid), {
+        username, name, role: team, notes: notes||'',
+        status: 'pending', requestedAt: new Date().toISOString()
+      });
+    } catch(dbErr) {
+      // Firestore save failed — delete the Auth user to allow retry
+      try { await cred.user.delete(); } catch(e2) {}
+      errEl.textContent = 'שגיאה בשמירת פרטים: ' + dbErr.message;
+      errEl.style.display='block';
+      await signOut(auth);
+      return;
+    }
+    await signOut(auth);
+    showAuthScreen('pending');
+  } catch(e) {
+    const msgs = {
+      'auth/email-already-in-use': 'שם המשתמש כבר תפוס — בחר אחר',
+      'auth/weak-password': 'סיסמה חלשה מדי',
+      'auth/network-request-failed': 'בעיית רשת — נסה שוב',
+      'auth/operation-not-allowed': 'הרשמה אינה מופעלת — פנה למנהל'
+    };
+    errEl.textContent = msgs[e.code] || 'שגיאה בהרשמה (' + e.code + '): ' + e.message;
+    errEl.style.display='block';
+    console.error('Register error:', e);
+  }
+}
+
+// ── ADMIN: load users ──
+window.renderAdminTab = async function() {
+  const snap = await getDocs(collection(db,'users'));
+  const users = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+  const pending = users.filter(u=>u.status==='pending');
+  const approved = users.filter(u=>u.status==='approved');
+
+  // Pending count badge
+  const pc = document.getElementById('pendingCount');
+  if(pc) pc.textContent = pending.length;
+
+  // Role labels
+  const roleLabels = {shatil:'צוות שטח', meser:'צוות מס"ר', kaa:'צוות כ"א', editor:'עורך', admin:'מנהל'};
+  const roleOptions = ['shatil','meser','kaa','editor','admin'].map(r=>
+    `<option value="${r}">${roleLabels[r]}</option>`).join('');
+
+  // Pending list
+  const pendingEl = document.getElementById('pendingList');
+  if(pendingEl) {
+    if(!pending.length) {
+      pendingEl.innerHTML = '<div style="padding:16px 20px;color:var(--text3);font-size:13px;">אין בקשות ממתינות ✓</div>';
+    } else {
+      pendingEl.innerHTML = pending.map(u=>`
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <div style="font-weight:700;font-size:13px;">${u.name||'—'}</div>
+            <div style="font-size:12px;color:var(--text2);">${u.email}</div>
+          </div>
+          <div style="font-size:12px;color:var(--text2);">בקש: ${roleLabels[u.role]||u.role}</div>
+          ${u.notes ? `<div style="font-size:11px;color:var(--text3);margin-top:2px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${u.notes}">📝 ${u.notes}</div>` : ''}
+          <select id="approve-role-${u.id}" style="width:140px;font-size:12px;padding:5px 8px;">
+            ${roleOptions}
+          </select>
+          <button class="btn btn-success btn-sm" onclick="approveUser('${u.id}')">✅ אשר</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectUser('${u.id}')">❌ דחה</button>
+        </div>`).join('');
+    }
+  }
+
+  // All approved users
+  const allEl = document.getElementById('allUsersList');
+  if(allEl) {
+    allEl.innerHTML = approved.map(u=>`
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:10px 14px;font-weight:600;">${u.name||'—'}</td>
+        <td style="padding:10px 14px;font-size:12px;color:var(--text2);">${u.username||u.email.replace('@meserkm.local','')}</td>
+        <td style="padding:10px 14px;">
+          <select onchange="changeUserRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;">
+            ${['shatil','meser','kaa','editor','admin'].map(r=>
+              `<option value="${r}" ${u.role===r?'selected':''}>${roleLabels[r]}</option>`).join('')}
+          </select>
+        </td>
+        <td style="padding:10px 14px;"><span class="badge badge-present" style="font-size:10px;">מאושר</span></td>
+        <td style="padding:10px 14px;display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="resetUserPassword('${u.id}','${u.username||u.email}')">🔑 איפוס סיסמה</button>
+          <button class="btn btn-danger btn-sm" onclick="revokeUser('${u.id}')">🚫 בטל גישה</button>
+        </td>
+      </tr>`).join('');
+  }
+}
+
+window.approveUser = async function(uid) {
+  const roleEl = document.getElementById('approve-role-'+uid);
+  const role = roleEl?.value || 'shatil';
+  await setDoc(doc(db,'users',uid), {status:'approved', role, approvedAt: new Date().toISOString()}, {merge:true});
+  showToast('✅ משתמש אושר בהצלחה');
+  writeLog('user_approved', '', role);
+  renderAdminTab();
+}
+
+window.rejectUser = async function(uid) {
+  if(!confirm('האם למחוק את בקשת ההרשמה?')) return;
+  await deleteDoc(doc(db,'users',uid));
+  showToast('🗑️ בקשה נדחתה ונמחקה');
+  renderAdminTab();
+}
+
+window.changeUserRole = async function(uid, role) {
+  await setDoc(doc(db,'users',uid), {role}, {merge:true});
+  showToast('✅ הרשאה עודכנה');
+}
+
+window.resetUserPassword = async function(uid, username) {
+  const newPass = prompt(`איפוס סיסמה למשתמש "${username}"
+הזן סיסמה חדשה (לפחות 6 תווים):`);
+  if(!newPass) return;
+  if(newPass.length < 6) { showToast('⚠️ סיסמה קצרה מדי — לפחות 6 תווים'); return; }
+
+  // We need to use Admin SDK for this — store reset request in Firestore
+  // The user will need to set their own password on next login
+  await setDoc(doc(db,'users',uid), {
+    passwordReset: { newPassword: newPass, requestedAt: new Date().toISOString(), requestedBy: window.currentUser?.email }
+  }, {merge:true});
+
+  showToast(`🔑 סיסמה חדשה נשמרה — המשתמש יוכל להיכנס עם הסיסמה החדשה`);
+}
+
+window.revokeUser = async function(uid) {
+  if(!confirm('האם לבטל את גישת המשתמש?')) return;
+  await setDoc(doc(db,'users',uid), {status:'revoked'}, {merge:true});
+  showToast('🚫 גישה בוטלה');
+  writeLog('user_revoked', '', '');
+  renderAdminTab();
+}
+
+// ── EDIT LOCK: disable inputs based on role ──
+window.applyEditLocksAfterRender = function() {
+  const role = window.currentRole;
+  if(!role || role==='admin' || role==='editor') return;
+
+  const lock = els => els.forEach(el=>{
+    el.disabled = true;
+    el.style.opacity='0.5';
+    el.style.cursor='not-allowed';
+    el.title='אין הרשאת עריכה';
+  });
+
+  // shatil role: can only edit shatil tab
+  if(role === 'shatil') {
+    lock([...document.querySelectorAll('#meserBody select, #meserBody input')]);
+    lock([...document.querySelectorAll('#summaryBody select, #summaryBody input, #summaryBody button')]);
+    // Hide add person buttons on other tabs
+    document.querySelectorAll('[onclick*="meser"],[onclick*="summary"]').forEach(b=>{ if(b.getAttribute('onclick')?.includes('showAddRow')) b.style.display='none'; });
+  }
+
+  // meser role: can only edit meser tab
+  if(role === 'meser') {
+    lock([...document.querySelectorAll('#shatilBody select, #shatilBody input')]);
+    lock([...document.querySelectorAll('#summaryBody select, #summaryBody input, #summaryBody button')]);
+    document.querySelectorAll('[onclick*="shatil"],[onclick*="summary"]').forEach(b=>{ if(b.getAttribute('onclick')?.includes('showAddRow')) b.style.display='none'; });
+  }
+
+  // kaa role: can edit all except setup (already hidden by tab)
+  // No additional locks needed for kaa
+}
+
+// ── START ALL FIRESTORE LISTENERS (called after auth) ──
+let _listenersStarted = false;
+function startFirestoreListeners() {
+  if(_listenersStarted) return;
+  _listenersStarted = true;
+  window._unsubscribers = window._unsubscribers || [];
+  window._unsubscribers.push(
+    onSnapshot(collection(db,'people'), snap => { S.people=snap.docs.map(d=>({id:d.id,...d.data()})); refresh(); }),
+    onSnapshot(collection(db,'shatil'), snap => { S.shatil={}; snap.docs.forEach(d=>{S.shatil[d.id]=d.data()}); refresh(); }),
+    onSnapshot(collection(db,'meser'),  snap => { S.meser={};  snap.docs.forEach(d=>{S.meser[d.id]=d.data()}); refresh(); }),
+    onSnapshot(collection(db,'final'),  snap => { S.final={};  snap.docs.forEach(d=>{S.final[d.id]=d.data()}); refresh(); })
+  );
+  window._unsubscribers.push(startDiyuvimListener());
+  window._unsubscribers.push(startChatListener());
+  // Lock state listener
+  window._unsubscribers.push(onSnapshot(doc(db,'system','lock'), snap => {
+    if(!window.currentUser) return;
+    const data = snap.data();
+    window.S.systemLocked = data?.locked || false;
+    updateLockUI();
+  }));
+  setTimeout(window._startDiyuvimSync, 2000);
+}
+
+// ── SHOW AUTH ON LOAD ──
+window.addEventListener('DOMContentLoaded', ()=>{
+  showAuthScreen('login');
+});
+
+
+// ══════════════════════════════════════════════════
+// ── ACTIVITY LOG ───────────────────────────────────
+// ══════════════════════════════════════════════════
+
+async function writeLog(action, personName, details) {
+  try {
+    const user = window.currentUser;
+    const username = user?.email?.replace('@meserkm.local','') || 'אנונימי';
+    await addDoc(collection(db,'activityLog'), {
+      ts: serverTimestamp(),
+      username,
+      action,
+      personName: personName || '',
+      details: details || '',
+    });
+    // Update last update in dashboard
+    const el = document.getElementById('lastUpdateTime');
+    const eu = document.getElementById('lastUpdateUser');
+    if(el) el.textContent = new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    if(eu) eu.textContent = username;
+  } catch(e) { /* log errors are non-critical */ }
+}
+
+window.renderLogTab = async function() {
+  const body = document.getElementById('logBody');
+  const empty = document.getElementById('logEmpty');
+  if(!body) return;
+  body.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">טוען...</td></tr>';
+
+  try {
+    const { query, orderBy, limit, getDocs: gd } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
+    const q = query(collection(db,'activityLog'), orderBy('ts','desc'), limit(200));
+    const snap = await gd(q);
+    const logs = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    if(!logs.length) { body.innerHTML=''; empty.style.display='block'; return; }
+    empty.style.display='none';
+
+    const actionLabels = {
+      'status_change': 'שינוי סטטוס',
+      'person_added': 'הוספת אדם',
+      'person_deleted': 'מחיקת אדם',
+      'system_locked': 'נעילת מערכת',
+      'system_unlocked': 'שחרור נעילה',
+      'user_approved': 'אישור משתמש',
+      'user_revoked': 'ביטול גישה',
+    };
+    const actionColors = {
+      'status_change': 'var(--accent)',
+      'person_added': 'var(--present)',
+      'person_deleted': 'var(--absent)',
+      'system_locked': 'var(--warn)',
+      'system_unlocked': 'var(--present)',
+      'user_approved': 'var(--present)',
+      'user_revoked': 'var(--absent)',
+    };
+
+    body.innerHTML = logs.map(l => {
+      const ts = l.ts?.toDate ? l.ts.toDate() : new Date();
+      const timeStr = ts.toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const color = actionColors[l.action] || 'var(--text)';
+      const label = actionLabels[l.action] || l.action;
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 14px;font-size:11px;color:var(--text2);white-space:nowrap;">${timeStr}</td>
+        <td style="padding:8px 14px;font-weight:600;font-size:12px;">${l.username||'—'}</td>
+        <td style="padding:8px 14px;"><span style="background:${color}22;color:${color};border:1px solid ${color}44;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700;">${label}</span></td>
+        <td style="padding:8px 14px;font-size:12px;">${l.personName||'—'}</td>
+        <td style="padding:8px 14px;font-size:11px;color:var(--text2);">${l.details||'—'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    body.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--absent);">שגיאה בטעינת הלוג: ${e.message}</td></tr>`;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// ── SYSTEM LOCK ────────────────────────────────────
+// ══════════════════════════════════════════════════
+
+window.S.systemLocked = false;
+// System lock listener is started in startFirestoreListeners()
+
+function updateLockUI() {
+  const locked = window.S.systemLocked;
+  const btn = document.getElementById('lockToggleBtn');
+  const display = document.getElementById('lockStatusDisplay');
+  if(btn) {
+    btn.textContent = locked ? '🔓 שחרר נעילה' : '🔒 נעל מערכת';
+    btn.className = locked ? 'btn btn-success btn-sm' : 'btn btn-warn btn-sm';
+    btn.style.width = '100%';
+  }
+  if(display) {
+    display.innerHTML = locked
+      ? '<span style="color:var(--absent);font-weight:700;">🔒 המערכת נעולה — עריכות מושבתות</span>'
+      : '<span style="color:var(--present);font-weight:700;">✅ המערכת פתוחה לעריכה</span>';
+  }
+  // Disable all inputs when locked (except for admin)
+  if(locked && window.currentRole !== 'admin') {
+    document.querySelectorAll('.inline-select, .inline-input').forEach(el => {
+      el.disabled = true; el.style.opacity='0.4'; el.style.cursor='not-allowed';
+      el.title = 'המערכת נעולה';
+    });
+  }
+}
+
+window.toggleSystemLock = async function() {
+  const role = window.currentRole;
+  if(role !== 'admin' && role !== 'editor') { showToast('⚠️ אין הרשאה לנעול את המערכת'); return; }
+  const newLocked = !window.S.systemLocked;
+  const msg = newLocked ? 'האם לנעול את המערכת? כל העריכות יושבתו.' : 'האם לשחרר את נעילת המערכת?';
+  if(!confirm(msg)) return;
+  await setDoc(doc(db,'system','lock'), {
+    locked: newLocked,
+    lockedBy: window.currentUser?.email?.replace('@meserkm.local',''),
+    lockedAt: new Date().toISOString()
+  });
+  await writeLog(newLocked ? 'system_locked' : 'system_unlocked', '', '');
+  showToast(newLocked ? '🔒 המערכת נעולה' : '🔓 הנעילה שוחררה');
+}
+
+// ══════════════════════════════════════════════════
+// ── DASHBOARD EXTRAS ───────────────────────────────
+// ══════════════════════════════════════════════════
+
+async function renderProgressChart() {
+  const wrap = document.getElementById('progressChartWrap');
+  const emptyEl = document.getElementById('progressChartEmpty');
+  const canvas = document.getElementById('progressChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+
+  try {
+    const { query, orderBy, limit: lim, getDocs: gd } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
+    const q = query(collection(db,'activityLog'), orderBy('ts','asc'), lim(500));
+    const snap = await gd(q);
+    const logs = snap.docs.map(d=>({...d.data()})).filter(l=>l.action==='status_change' && l.ts);
+
+    if(logs.length < 2) {
+      if(wrap) wrap.style.display='none';
+      if(emptyEl) emptyEl.style.display='block';
+      return;
+    }
+    if(wrap) wrap.style.display='block';
+    if(emptyEl) emptyEl.style.display='none';
+
+    // Group by hour — count cumulative "located" statuses
+    const hourMap = {};
+    logs.forEach(l => {
+      const d = l.ts.toDate ? l.ts.toDate() : new Date(l.ts);
+      const key = d.toISOString().slice(0,13); // YYYY-MM-DDTHH
+      if(!hourMap[key]) hourMap[key] = 0;
+      // Count positive status changes
+      const pos = ['מאותר חי','שוהה במסר','פונה לבית חולים','התפנה עצמאית למשפחה/חברים'];
+      if(pos.some(s => (l.details||'').includes(s))) hourMap[key]++;
+    });
+
+    const labels = Object.keys(hourMap).sort();
+    let cumulative = 0;
+    const data = labels.map(k => { cumulative += hourMap[k]; return cumulative; });
+    const displayLabels = labels.map(k => {
+      const d = new Date(k+':00:00');
+      return d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) + ' ' + d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});
+    });
+
+    // Destroy existing chart
+    if(window._progressChart) { window._progressChart.destroy(); }
+
+    window._progressChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: displayLabels,
+        datasets: [{
+          label: 'אנשים שאותרו (מצטבר)',
+          data,
+          borderColor: '#059669',
+          backgroundColor: 'rgba(5,150,105,0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#059669',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'Heebo' } } } },
+        scales: {
+          x: { ticks: { font: { family: 'Heebo', size: 10 }, maxRotation: 45 } },
+          y: { beginAtZero: true, ticks: { font: { family: 'Heebo' }, stepSize: 1 } }
+        }
+      }
+    });
+  } catch(e) {
+    console.error('Progress chart error:', e);
+    if(emptyEl) { emptyEl.style.display='block'; emptyEl.textContent='שגיאה בטעינת הגרף'; }
+    if(wrap) wrap.style.display='none';
+  }
+}
+
+function renderStreetBreakdown() {
+  const el = document.getElementById('streetBreakdown');
+  if(!el) return;
+  const streets = {};
+  S.people.forEach(p => {
+    const s = p.street || 'לא ידוע';
+    if(!streets[s]) streets[s] = {total:0, done:0};
+    streets[s].total++;
+    const f = computeFinal(p.id);
+    if(f.status && f.status !== '') streets[s].done++;
+  });
+  const sorted = Object.entries(streets).sort((a,b)=>b[1].total-a[1].total);
+  el.innerHTML = sorted.map(([street, data]) => {
+    const pct = data.total > 0 ? Math.round(data.done/data.total*100) : 0;
+    const color = pct===100 ? 'var(--present)' : pct>50 ? 'var(--warn)' : 'var(--absent)';
+    const searchVal = street === 'לא ידוע' ? '' : street;
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:140px;cursor:pointer;" onclick="document.getElementById('summarySearch').value='${searchVal}';switchTab('summary');renderSummary();">
+      <div style="font-weight:700;font-size:12px;margin-bottom:4px;">${street}</div>
+      <div style="font-size:11px;color:var(--text2);">${data.done}/${data.total} טופלו</div>
+      <div style="height:4px;background:var(--border);border-radius:2px;margin-top:6px;">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width 0.5s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────
+let _chatUnread = 0;
+let _chatInitialized = false;
+
+// Load saved name
+const _savedName = localStorage.getItem('meser_chat_name') || '';
+window.addEventListener('DOMContentLoaded', ()=>{
+  const el = document.getElementById('chatName');
+  if(el && _savedName) el.value = _savedName;
+});
+
+window.saveChatName = function(v) {
+  localStorage.setItem('meser_chat_name', v);
+}
+
+function getChatName() {
+  return document.getElementById('chatName')?.value.trim() || 'אנונימי';
+}
+
+function scrollChat() {
+  const el = document.getElementById('chatMessages');
+  if(el) el.scrollTop = el.scrollHeight;
+}
+
+function formatTime(ts) {
+  if(!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
+}
+function formatDate(ts) {
+  if(!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('he-IL', {day:'numeric', month:'long'});
+}
+
+// Listen to chat messages
+const chatCol = collection(db, 'chat');
+import { query, orderBy, limit, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+const chatQ = query(chatCol, orderBy('ts','asc'), limit(200));
+
+function startChatListener() { return onSnapshot(chatQ, snap => {
+  const msgs = snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderChat(msgs);
+
+  // badge for unread when not on chat tab
+  const activeTab = document.querySelector('.tab.active')?.textContent || '';
+  if(!activeTab.includes('צ\'אט') && msgs.length > 0) {
+    if(_chatInitialized) {
+      _chatUnread++;
+      const badge = document.getElementById('chatBadge');
+      if(badge && _chatUnread > 0) { badge.style.display='inline'; badge.textContent=_chatUnread; }
+    }
+  }
+  _chatInitialized = true;
+}); }
+
+function renderChat(msgs) {
+  const el = document.getElementById('chatMessages');
+  if(!el) return;
+  if(!msgs.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">💬</div><p>אין הודעות עדיין — התחל שיחה!</p></div>';
+    return;
+  }
+  const myName = getChatName();
+  let html = '';
+  let lastDate = '';
+  msgs.forEach(m => {
+    const dateStr = formatDate(m.ts);
+    if(dateStr !== lastDate) {
+      html += `<div class="chat-date-sep">${dateStr}</div>`;
+      lastDate = dateStr;
+    }
+    const isMine = m.sender === myName;
+    html += `<div class="chat-msg ${isMine?'mine':'theirs'}">
+      ${!isMine ? `<div class="chat-sender">${m.sender||'אנונימי'}</div>` : ''}
+      <div class="chat-bubble">${escapeHtml(m.text)}</div>
+      <div class="chat-meta">${formatTime(m.ts)}</div>
+    </div>`;
+  });
+  const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  el.innerHTML = html;
+  if(wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.sendMessage = async function() {
+  const input = document.getElementById('chatInput');
+  const text = input?.value.trim();
+  if(!text) return;
+  const sender = getChatName();
+  input.value = '';
+  await addDoc(chatCol, { text, sender, ts: serverTimestamp() });
+  setTimeout(scrollChat, 100);
+}
+
+window.clearChat = async function() {
+  if(window.currentRole !== 'admin') { showToast("⚠️ רק אדמין יכול לנקות את הצ'אט"); return; }
+  if(!confirm("האם למחוק את כל הודעות הצ'אט? פעולה זו בלתי הפיכה.")) return;
+  const snap = await getDocs(chatCol);
+  const batch = writeBatch(db);
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+  showToast("🗑️ הצ'אט נוקה");
+}
+</script>
+</body>
+</html>

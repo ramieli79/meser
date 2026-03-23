@@ -1288,6 +1288,9 @@ input[type=file] { display: none; }
         <span style="font-size:13px;color:var(--text2);">אין לך חשבון? </span>
         <button onclick="showAuthScreen('register')" style="background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;">הרשמה</button>
       </div>
+      <div style="text-align:center;margin-top:10px;">
+        <button onclick="showAuthScreen('reset')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;">קיבלתי סיסמה חדשה מהמנהל</button>
+      </div>
     </div>
 
     <!-- REGISTER SCREEN -->
@@ -1343,6 +1346,36 @@ input[type=file] { display: none; }
       <button onclick="showAuthScreen('login')" class="btn btn-ghost">חזרה לכניסה</button>
     </div>
 
+    <!-- RESET PASSWORD SCREEN -->
+    <div id="authReset" style="display:none;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="font-size:32px;margin-bottom:8px;">🔑</div>
+        <div style="font-size:20px;font-weight:900;color:var(--text);">הגדרת סיסמה חדשה</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">המנהל אפס את הסיסמה שלך — הגדר סיסמה חדשה</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">שם משתמש</label>
+        <input type="text" id="resetUsername" placeholder="שם משתמש" style="width:100%;" autocomplete="username">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">סיסמה ישנה (שהגדרת בהרשמה)</label>
+        <input type="password" id="resetOldPassword" placeholder="••••••••" style="width:100%;" autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">סיסמה חדשה</label>
+        <input type="password" id="resetNewPassword" placeholder="לפחות 6 תווים" style="width:100%;" autocomplete="new-password">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">אימות סיסמה חדשה</label>
+        <input type="password" id="resetConfirmPassword" placeholder="הזן שוב" style="width:100%;" onkeydown="if(event.key==='Enter')doResetPassword()" autocomplete="new-password">
+      </div>
+      <div id="resetError" style="display:none;color:var(--absent);font-size:12px;margin-bottom:12px;padding:8px 12px;background:var(--absent-light);border-radius:8px;"></div>
+      <button class="btn btn-primary" onclick="doResetPassword()" style="width:100%;padding:12px;">עדכן סיסמה וכנס למערכת</button>
+      <div style="text-align:center;margin-top:14px;">
+        <button onclick="showAuthScreen('login')" style="background:none;border:none;color:var(--text2);font-size:13px;cursor:pointer;">← חזרה לכניסה</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1351,6 +1384,7 @@ input[type=file] { display: none; }
 window.showAuthScreen=function(s){setTimeout(function(){if(window._realShowAuthScreen)window._realShowAuthScreen(s);},200);};
 window.doLogin=function(){setTimeout(function(){if(window._realDoLogin)window._realDoLogin();},200);};
 window.doRegister=function(){setTimeout(function(){if(window._realDoRegister)window._realDoRegister();},200);};
+window.doResetPassword=function(){setTimeout(function(){if(window._realDoResetPassword)window._realDoResetPassword();},200);};
 </script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
@@ -1420,9 +1454,16 @@ onAuthStateChanged(auth, async user => {
 
   window.currentRole = userData.role;
 
-  // Check if admin set a new password for this user
+  // Check if admin set a new password for this user — send to reset screen
   if(userData.passwordReset?.newPassword) {
-    await setDoc(doc(db,'users',user.uid), {passwordReset: null}, {merge:true});
+    // Pre-fill the username on the reset screen
+    await signOut(auth);
+    showAuthScreen('reset');
+    setTimeout(() => {
+      const unEl = document.getElementById('resetUsername');
+      if(unEl) unEl.value = user.email.replace('@meserkm.local','');
+    }, 300);
+    return;
   }
 
   startFirestoreListeners();
@@ -3152,11 +3193,12 @@ function startSheetSync(url, intervalMin) {
 window._realShowAuthScreen = window.showAuthScreen = function(screen) {
   const overlay = document.getElementById('authOverlay');
   if(overlay) overlay.style.display = 'flex';
-  ['authLogin','authRegister','authPending'].forEach(id => {
+  ['authLogin','authRegister','authPending','authReset'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
-  const target = screen==='login' ? 'authLogin' : screen==='register' ? 'authRegister' : 'authPending';
+  const map = {login:'authLogin', register:'authRegister', pending:'authPending', reset:'authReset'};
+  const target = map[screen] || 'authLogin';
   const el = document.getElementById(target);
   if(el) el.style.display = 'block';
 }
@@ -3330,16 +3372,60 @@ window.resetUserPassword = async function(uid, username) {
   if(!newPass) return;
   if(newPass.length < 6) { showToast('⚠️ סיסמה קצרה מדי — לפחות 6 תווים'); return; }
 
-  // We need to use Admin SDK for this — store reset request in Firestore
-  // The user will need to set their own password on next login
+  // Store reset request in Firestore — applied automatically on next login via onAuthStateChanged
   await setDoc(doc(db,'users',uid), {
-    passwordReset: { newPassword: newPass, requestedAt: new Date().toISOString(), requestedBy: window.currentUser?.email }
+    passwordReset: { newPassword: newPass, requestedAt: new Date().toISOString(), requestedBy: window.currentUser?.email },
+    status: 'approved'
   }, {merge:true});
 
-  showToast(`🔑 סיסמה חדשה נשמרה — המשתמש יוכל להיכנס עם הסיסמה החדשה`);
+  showToast(`🔑 סיסמה חדשה נשמרה — המשתמש יכנס עם הסיסמה הישנה, והיא תתעדכן אוטומטית`);
 }
 
-window.revokeUser = async function(uid) {
+window._realDoResetPassword = window.doResetPassword = async function() {
+  const username = document.getElementById('resetUsername')?.value.trim().toLowerCase().replace(/\s+/g,'_');
+  const oldPass   = document.getElementById('resetOldPassword')?.value;
+  const newPass   = document.getElementById('resetNewPassword')?.value;
+  const confirmPass = document.getElementById('resetConfirmPassword')?.value;
+  const errEl = document.getElementById('resetError');
+  errEl.style.display = 'none';
+
+  if(!username || !oldPass || !newPass || !confirmPass) {
+    errEl.textContent = 'נא למלא את כל השדות'; errEl.style.display='block'; return;
+  }
+  if(newPass.length < 6) {
+    errEl.textContent = 'הסיסמה החדשה חייבת להכיל לפחות 6 תווים'; errEl.style.display='block'; return;
+  }
+  if(newPass !== confirmPass) {
+    errEl.textContent = 'הסיסמאות החדשות אינן תואמות'; errEl.style.display='block'; return;
+  }
+
+  const fakeEmail = username + '@meserkm.local';
+  try {
+    // Sign in with OLD password (this gives us a fresh token)
+    const cred = await signInWithEmailAndPassword(auth, fakeEmail, oldPass);
+
+    // Now update to NEW password — fresh token means no requires-recent-login error
+    await updatePassword(cred.user, newPass);
+
+    // Clear the passwordReset flag in Firestore
+    const { doc: fiDoc, setDoc: fiSet } = await import("https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js");
+    await fiSet(fiDoc(db, 'users', cred.user.uid), { passwordReset: null }, { merge: true });
+
+    showToast('✅ סיסמה עודכנה בהצלחה — מכניס אותך...');
+    // onAuthStateChanged will fire and complete the login
+  } catch(e) {
+    const msgs = {
+      'auth/invalid-credential': 'הסיסמה הישנה שגויה — נסה שוב',
+      'auth/user-not-found':     'שם משתמש לא נמצא',
+      'auth/wrong-password':     'הסיסמה הישנה שגויה',
+      'auth/too-many-requests':  'יותר מדי ניסיונות — נסה שוב מאוחר יותר',
+      'auth/weak-password':      'הסיסמה החדשה חלשה מדי'
+    };
+    errEl.textContent = msgs[e.code] || 'שגיאה: ' + e.message;
+    errEl.style.display = 'block';
+    console.error('Reset password error:', e.code, e.message);
+  }
+}
   if(!confirm('האם לבטל את גישת המשתמש?')) return;
   await setDoc(doc(db,'users',uid), {status:'revoked'}, {merge:true});
   showToast('🚫 גישה בוטלה');

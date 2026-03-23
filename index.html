@@ -576,9 +576,17 @@ input[type=file] { display: none; }
     </div>
   </div>
 
-  <!-- hidden tables kept for JS compatibility -->
-  <table id="breakShatil" style="display:none;"></table>
-  <table id="breakMeser" style="display:none;"></table>
+  <!-- SHATIL + MESER BREAKDOWNS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="section">
+      <div class="section-header"><span class="section-title">🔵 פירוט סטטוס — צוות שטח</span></div>
+      <table class="breakdown-table" id="breakShatil"></table>
+    </div>
+    <div class="section">
+      <div class="section-header"><span class="section-title">🟢 פירוט סטטוס — צוות מס"ר</span></div>
+      <table class="breakdown-table" id="breakMeser"></table>
+    </div>
+  </div>
 
   <!-- STATUS + LOCK -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
@@ -606,12 +614,15 @@ input[type=file] { display: none; }
   <div class="section" style="margin-top:16px;">
     <div class="section-header">
       <span class="section-title">📈 גרף התקדמות — אנשים שאותרו לאורך זמן</span>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <label style="font-size:11px;font-weight:700;color:var(--text2);">מ:</label>
-        <input type="datetime-local" id="chartFrom" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;" onchange="renderProgressChart()">
+        <input type="datetime-local" id="chartFrom" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;cursor:pointer;" onchange="renderProgressChart()">
         <label style="font-size:11px;font-weight:700;color:var(--text2);">עד:</label>
-        <input type="datetime-local" id="chartTo" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;" onchange="renderProgressChart()">
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('chartFrom').value='';document.getElementById('chartTo').value='';renderProgressChart()">הצג הכל</button>
+        <input type="datetime-local" id="chartTo" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;cursor:pointer;" onchange="renderProgressChart()">
+        <button class="btn btn-ghost btn-sm" onclick="chartSetRange(1)">שעה אחרונה</button>
+        <button class="btn btn-ghost btn-sm" onclick="chartSetRange(6)">6 שעות</button>
+        <button class="btn btn-ghost btn-sm" onclick="chartSetRange(24)">24 שעות</button>
+        <button class="btn btn-ghost btn-sm" onclick="chartSetRange(0)">הכל</button>
       </div>
     </div>
     <div style="padding:16px;">
@@ -769,6 +780,7 @@ input[type=file] { display: none; }
             <th>מקור</th>
             <th style="text-align:center;" title="סומן כטופל">✔️ טופל</th>
             <th>חפש אדם</th>
+            <th style="min-width:180px;">עם מי היית / מידע נוסף</th>
           </tr>
         </thead>
         <tbody id="diyuvimBody"></tbody>
@@ -3070,14 +3082,16 @@ window.addPersonFromDiyuvim = function(firstName, lastName, tz, phone, street, h
   switchTab('summary');
   setTimeout(() => {
     showAddRow('summary');
-    const s = v => document.getElementById(v);
-    if(s('new-summary-firstName')) s('new-summary-firstName').value = firstName||'';
-    if(s('new-summary-lastName'))  s('new-summary-lastName').value  = lastName||'';
-    if(s('new-summary-tz'))        s('new-summary-tz').value        = tz||'';
-    if(s('new-summary-phone'))     s('new-summary-phone').value     = phone||'';
-    if(s('new-summary-street'))    s('new-summary-street').value    = street||'';
-    if(s('new-summary-houseNum'))  s('new-summary-houseNum').value  = houseNum||'';
-    if(s('new-summary-apt'))       s('new-summary-apt').value       = apt||'';
+    const g = id => document.getElementById(id);
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
+    if(g('new-summary-name'))     g('new-summary-name').value     = fullName;
+    if(g('new-summary-tz'))       g('new-summary-tz').value       = tz||'';
+    if(g('new-summary-phone'))    g('new-summary-phone').value    = phone||'';
+    if(g('new-summary-street'))   g('new-summary-street').value   = street||'';
+    if(g('new-summary-houseNum')) g('new-summary-houseNum').value = houseNum||'';
+    if(g('new-summary-apt'))      g('new-summary-apt').value      = apt||'';
+    // scroll to addRow
+    g('addRow-summary')?.scrollIntoView({behavior:'smooth', block:'center'});
   }, 200);
 }
 
@@ -3193,6 +3207,7 @@ window.renderDiyuvim = function() {
         <button class="btn btn-primary btn-sm" style="margin-right:4px;" onclick="addPersonFromDiyuvim('${escapeHtml(r.firstName||'')}','${escapeHtml(r.lastName||'')}','${escapeHtml(r.tz||'')}','${escapeHtml(r.phone||'')}','${escapeHtml(r.street||'')}','${escapeHtml(r.houseNum||'')}','${escapeHtml(r.apt||'')}')">➕ הוסף אדם</button>
       </td>
       <td style="text-align:center;">${srcBadge}</td>
+      <td><textarea class="inline-input" style="width:220px;min-height:52px;resize:both;font-size:12px;" readonly title="${escapeHtml(r.notes||'')}">${escapeHtml(r.notes||'')}</textarea></td>
     </tr>`;
   }).join('');
 }
@@ -3719,6 +3734,21 @@ window.toggleSystemLock = async function() {
 // ══════════════════════════════════════════════════
 // ── DASHBOARD EXTRAS ───────────────────────────────
 // ══════════════════════════════════════════════════
+
+window.chartSetRange = function(hours) {
+  const from = document.getElementById('chartFrom');
+  const to   = document.getElementById('chartTo');
+  if(hours === 0) { from.value = ''; to.value = ''; }
+  else {
+    const now = new Date();
+    const past = new Date(now.getTime() - hours * 3600 * 1000);
+    // format as datetime-local: YYYY-MM-DDTHH:MM
+    const fmt = d => d.toISOString().slice(0,16);
+    from.value = fmt(past);
+    to.value   = fmt(now);
+  }
+  renderProgressChart();
+}
 
 async function renderProgressChart() {
   const wrap = document.getElementById('progressChartWrap');

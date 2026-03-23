@@ -3426,6 +3426,8 @@ window._realDoResetPassword = window.doResetPassword = async function() {
     console.error('Reset password error:', e.code, e.message);
   }
 }
+
+window.revokeUser = async function(uid) {
   if(!confirm('האם לבטל את גישת המשתמש?')) return;
   await setDoc(doc(db,'users',uid), {status:'revoked'}, {merge:true});
   showToast('🚫 גישה בוטלה');

@@ -1419,14 +1419,45 @@ window.currentRole = null; // 'shatil' | 'meser' | 'kaa' | 'editor' | 'admin'
 
 window.S = { people: [], shatil: {}, meser: {}, final: {}, diyuvim: [] };
 
-// ── SEARCH HELPER: order-independent word matching ──
+// ── SEARCH HELPER: fuzzy, order-independent, phonetic ──
+function _searchNormalize(s) {
+  return (s||'').trim()
+    .replace(/ע/g,'א')   // ayin = alef
+    .replace(/ח/g,'כ')   // het = kaf
+    .replace(/ט/g,'ת')   // tet = tav
+    .replace(/יי+/g,'י') // double yod
+    .replace(/(.)/g, (c,m) => { const doubled={ב:'ב',כ:'כ',פ:'פ',מ:'מ',נ:'נ',ל:'ל',ר:'ר',ד:'ד',ס:'ס',ז:'ז',שׁ:'ש',שׂ:'ש'}; return doubled[m]||m; })
+    .replace(/(.)\1+/g,'$1') // collapse consecutive identical chars (כּכ → כ)
+    .replace(/['"״׳]/g,'')    // strip quotes/geresh
+    .replace(/\s+/g,' ')
+    .trim()
+    .toLowerCase();
+}
+function _searchLevenshtein(a, b) {
+  const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  const dp=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>i===0?j:j===0?i:0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
 function matchesSearch(name, query) {
-  if(!query) return true;
-  const normalize = s => s.trim().replace(/\s+/g,' ').toLowerCase();
-  const qWords = normalize(query).split(' ').filter(Boolean);
-  const nWords = normalize(name||'').split(' ');
-  // Every query word must appear in some name word (startsWith)
-  return qWords.every(qw => nWords.some(nw => nw.includes(qw)));
+  if(!query || !query.trim()) return true;
+  const nq = _searchNormalize(query);
+  const nn = _searchNormalize(name||'');
+  const qWords = nq.split(' ').filter(Boolean);
+  const nWords = nn.split(' ').filter(Boolean);
+  if(!qWords.length) return true;
+
+  // Every query-word must fuzzy-match at least one name-word
+  return qWords.every(qw => {
+    return nWords.some(nw => {
+      if(nw.includes(qw) || qw.includes(nw)) return true;
+      // Allow 1 typo for words ≥4 chars, 0 for shorter
+      const maxDist = qw.length >= 5 ? 2 : qw.length >= 4 ? 1 : 0;
+      return maxDist > 0 && _searchLevenshtein(qw, nw) <= maxDist;
+    });
+  });
 }
 
 

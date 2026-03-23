@@ -717,7 +717,7 @@ input[type=file] { display: none; }
             <th class="sep">סטטוס</th>
             <th class="sep">התאמה</th>
             <th style="text-align:center;" title="אושר / נבדק">✔️</th>
-            <th>סטטוס (עריכה ישירה)</th><th>מזין</th>
+            <th>סטטוס (עריכה ישירה)</th><th>הערות</th>
           </tr>
         </thead>
         <tbody id="summaryBody"></tbody>
@@ -772,7 +772,7 @@ input[type=file] { display: none; }
             <th>טלפון</th>
             <th>מקור</th>
             <th style="text-align:center;" title="סומן כטופל">✔️ טופל</th>
-            <th>הערות</th>
+            <th>חפש אדם</th>
           </tr>
         </thead>
         <tbody id="diyuvimBody"></tbody>
@@ -823,7 +823,6 @@ input[type=file] { display: none; }
         <input class="inline-input" id="new-shatil-apt" placeholder="דירה" style="width:60px;">
         <input class="inline-input" id="new-shatil-phone" placeholder="טלפון" style="width:120px;">
         <input class="inline-input" id="new-shatil-reporter" placeholder="שם מדווח *" style="width:130px;border-color:var(--accent);">
-        <input class="inline-input" id="new-shatil-operator" placeholder="איש הצוות *" style="width:130px;border-color:var(--accent);">
         <button class="btn btn-primary btn-sm" onclick="saveNewPerson('shatil')">✅ הוסף לרשימה</button>
         <button class="btn btn-ghost btn-sm" onclick="hideAddRow('shatil')">ביטול</button>
       </div>
@@ -846,7 +845,7 @@ input[type=file] { display: none; }
             <th class="sortable" onclick="sortTable('shatil','status')">סטטוס</th>
             <th>שם המדווח</th>
             <th>טלפון מדווח</th>
-            <th>איש הצוות</th>
+            <th>טלפון נוסף</th>
             <th>הערות</th>
           </tr>
         </thead>
@@ -892,7 +891,6 @@ input[type=file] { display: none; }
         <input class="inline-input" id="new-meser-apt" placeholder="דירה" style="width:60px;">
         <input class="inline-input" id="new-meser-phone" placeholder="טלפון" style="width:120px;">
         <input class="inline-input" id="new-meser-reporter" placeholder="שם מדווח *" style="width:130px;border-color:var(--present);">
-        <input class="inline-input" id="new-meser-operator" placeholder="איש הצוות *" style="width:130px;border-color:var(--present);">
         <button class="btn btn-success btn-sm" onclick="saveNewPerson('meser')">✅ הוסף לרשימה</button>
         <button class="btn btn-ghost btn-sm" onclick="hideAddRow('meser')">ביטול</button>
       </div>
@@ -914,7 +912,7 @@ input[type=file] { display: none; }
             <th title="הוספה ידנית">ידני</th>
             <th class="sortable" onclick="sortTable('meser','status')">סטטוס</th>
             <th>שם המדווח</th>
-            <th>איש הצוות</th>
+            <th>טלפון נוסף</th>
             <th>הערות</th>
           </tr>
         </thead>
@@ -1497,7 +1495,7 @@ function applyRoleUI() {
   const userInfoEl = document.getElementById('headerUserInfo');
   const roleLabels = {shatil:'צוות שטח', meser:'צוות מס"ר', kaa:'צוות כ"א', editor:'עורך', admin:'מנהל'};
   if(userInfoEl) userInfoEl.innerHTML = `
-    <span style="font-size:12px;color:var(--text2);">${window.currentUser.email.replace('@meserkm.local','')}</span>
+    <span style="font-size:12px;color:var(--text2);">${(window.currentUser.email||'').split('@')[0]}</span>
     <span class="badge" style="background:var(--accent-light);color:var(--accent);border:1px solid #bfdbfe;font-size:11px;">${roleLabels[role]||role}</span>
     <button class="btn btn-ghost btn-sm" onclick="doSignOut()" style="font-size:12px;">יציאה</button>
   `;
@@ -1938,7 +1936,8 @@ window.renderSummary = function() {
         const isManualS = p.id?.startsWith('manual_');
         if(!isManualS) return '';
         const isFilteredS = window._similarFilter && window._similarFilter.name === p.name;
-        return `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','summary')" title="${isFilteredS?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFilteredS?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`;
+        const _safeName = (p.name||'').replace(/'/g,"\'");
+        return `<span onclick="toggleSimilarFilter('${_safeName}','summary')" title="${isFilteredS?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFilteredS?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`;
       })()}</td>
       <td class="sep">${sBadge(sh.status)}</td>
       <td class="sep">${sBadge(ms.status)}</td>
@@ -1957,7 +1956,7 @@ window.renderSummary = function() {
           <option value="לא היה בארוע" ${S.final[p.id]?.manualStatus==='לא היה בארוע'?'selected':''}>⚪ לא היה בארוע</option>
         </select>
       </td>
-      <td><input class="inline-input" value="${f.editor||''}" placeholder="מזין (כ&quot;א)" onchange="inlineFinal('${p.id}','editor',this.value)" style="width:120px;"></td>
+      <td><input class="inline-input" value="${f.editor||''}" placeholder="הערות" onchange="inlineFinal('${p.id}','editor',this.value)" style="width:150px;"></td>
     </tr>`;
   }).join('');
 }
@@ -1987,8 +1986,9 @@ window.renderShatil = function() {
     const rowClass = !sh.status ? '' : (sh.status==='נעדר'||sh.status==='חלל') ? 'row-red' : 'row-green';
     const isManual = p.id?.startsWith('manual_');
     const isFiltered = window._similarFilter && window._similarFilter.name === p.name;
+    const _safeNameSh = (p.name||'').replace(/'/g,"\'");
     const manualDot = isManual
-      ? `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','shatil')" title="${isFiltered?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
+      ? `<span onclick="toggleSimilarFilter('${_safeNameSh}','shatil')" title="${isFiltered?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
       : '';
     return `<tr class="${rowClass}${window._similarFilter&&window._similarFilter.ids.has(p.id)&&!isFiltered?' similar-highlight':''}">
       <td><span class="idx">${p.index||i+1}</span></td>
@@ -2003,8 +2003,9 @@ window.renderShatil = function() {
       <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
       <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
-      <td><input class="inline-input" value="${sh.operator||''}" placeholder="איש הצוות" onchange="inlineSave('shatil','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${sh.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('shatil','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
+      ${isManual ? `<td><button class="btn btn-ghost btn-sm" onclick="openEditPersonModal('${p.id}')">✏️ עריכה</button></td>` : '<td></td>'}
     </tr>`;
   }).join('');
 }
@@ -2036,8 +2037,9 @@ window.renderMeser = function() {
     const rowClass2 = !ms.status ? '' : (ms.status==='חלל'||ms.status==='נעדר') ? 'row-red' : 'row-green';
     const isManual2 = p.id?.startsWith('manual_');
     const isFiltered2 = window._similarFilter && window._similarFilter.name === p.name;
+    const _safeNameMs = (p.name||'').replace(/'/g,"\'");
     const manualDot2 = isManual2
-      ? `<span onclick="toggleSimilarFilter('${p.name.replace(/'/g,"\\'")}','meser')" title="${isFiltered2?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered2?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
+      ? `<span onclick="toggleSimilarFilter('${_safeNameMs}','meser')" title="${isFiltered2?'לחץ לביטול פילטר':'לחץ לחיפוש שמות דומים'}" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--absent);cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;${isFiltered2?'box-shadow:0 0 0 3px rgba(220,38,38,0.35);transform:scale(1.25);':''}">🔍</span>`
       : '';
     return `<tr class="${rowClass2}${window._similarFilter&&window._similarFilter.ids.has(p.id)&&!isFiltered2?' similar-highlight':''}">
       <td><span class="idx">${p.index||i+1}</span></td>
@@ -2051,8 +2053,9 @@ window.renderMeser = function() {
       <td style="text-align:center;">${manualDot2}</td>
       <td><select class="inline-select" onchange="inlineSave('meser','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${ms.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('meser','${p.id}','reporter',this.value)"></td>
-      <td><input class="inline-input" value="${ms.operator||''}" placeholder="איש הצוות" onchange="inlineSave('meser','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${ms.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('meser','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${ms.notes||''}" placeholder="הערות" onchange="inlineSave('meser','${p.id}','notes',this.value)" style="width:150px;"></td>
+      ${isManual2 ? `<td><button class="btn btn-ghost btn-sm" onclick="openEditPersonModal('${p.id}')">✏️ עריכה</button></td>` : '<td></td>'}
     </tr>`;
   }).join('');
 }
@@ -2457,7 +2460,6 @@ window.saveNewPerson = async function(tab) {
   const errors = [];
   if(!name) errors.push('שם מלא הוא שדה חובה');
   if(!reporter) errors.push('שם מדווח הוא שדה חובה');
-  if(!operator) errors.push('איש הצוות הוא שדה חובה');
   if(errors.length) {
     errEl.textContent = '⚠️ ' + errors.join(' | ');
     errEl.style.display = 'block';
@@ -2585,7 +2587,7 @@ function renderShatilDuplicates() {
       <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
       <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
-      <td><input class="inline-input" value="${sh.operator||''}" placeholder="איש הצוות" onchange="inlineSave('shatil','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${sh.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('shatil','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
     </tr>`;
   }).join('');
@@ -2617,7 +2619,7 @@ function renderMeserDuplicates() {
       <td style="text-align:center;">${p.id?.startsWith('manual_')?'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--absent);" title="הוסף ידנית"></span>':''}</td>
       <td><select class="inline-select" onchange="inlineSave('meser','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${ms.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('meser','${p.id}','reporter',this.value)"></td>
-      <td><input class="inline-input" value="${ms.operator||''}" placeholder="איש הצוות" onchange="inlineSave('meser','${p.id}','operator',this.value)"></td>
+      <td><input class="inline-input" value="${ms.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('meser','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${ms.notes||''}" placeholder="הערות" onchange="inlineSave('meser','${p.id}','notes',this.value)" style="width:150px;"></td>
     </tr>`;
   }).join('');
@@ -3050,6 +3052,80 @@ function startDiyuvimListener() { return onSnapshot(diyuvimCol, snap => {
 S.diyuvim = S.diyuvim || {};
 
 // ── RENDER ──
+// ── SEARCH PERSON FROM DIYUVIM ──
+window.searchPersonFromDiyuvim = function(firstName, lastName) {
+  const q = (firstName + ' ' + lastName).trim();
+  const el = document.getElementById('summarySearch');
+  if(el) el.value = q;
+  switchTab('summary');
+  setTimeout(() => { renderSummary(); }, 100);
+}
+
+// ── EDIT / DELETE MANUAL PERSON MODAL ──
+window.openEditPersonModal = function(id) {
+  const p = S.people.find(x => x.id === id);
+  if(!p) return;
+  const existing = document.getElementById('editPersonModalOverlay');
+  if(existing) existing.remove();
+
+  const safeName = (p.name||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  const overlay = document.createElement('div');
+  overlay.id = 'editPersonModalOverlay';
+  overlay.className = 'modal-overlay open';
+  overlay.innerHTML = `
+    <div class="modal" style="width:520px;">
+      <h3>✏️ עריכת פרטי אדם — ${escapeHtml(p.name||'')}</h3>
+      <div class="modal-row"><label>שם מלא *</label><input type="text" id="ep-name" value="${escapeHtml(p.name||'')}" style="width:100%;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="modal-row"><label>ת"ז</label><input type="text" id="ep-tz" value="${escapeHtml(p.tz||'')}" style="width:100%;"></div>
+        <div class="modal-row"><label>גיל</label><input type="text" id="ep-age" value="${escapeHtml(p.age||'')}" style="width:100%;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;">
+        <div class="modal-row"><label>רחוב</label><input type="text" id="ep-street" value="${escapeHtml(p.street||'')}" style="width:100%;"></div>
+        <div class="modal-row"><label>מס' בית</label><input type="text" id="ep-houseNum" value="${escapeHtml(p.houseNum||'')}" style="width:100%;"></div>
+        <div class="modal-row"><label>דירה</label><input type="text" id="ep-apt" value="${escapeHtml(p.apt||'')}" style="width:100%;"></div>
+      </div>
+      <div class="modal-row"><label>טלפון</label><input type="text" id="ep-phone" value="${escapeHtml(p.phone||'')}" style="width:100%;"></div>
+      <div id="ep-err" style="display:none;color:var(--absent);font-size:12px;padding:8px 12px;background:var(--absent-light);border-radius:8px;margin-bottom:8px;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveEditPerson('${id}')">💾 שמור שינויים</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('editPersonModalOverlay').remove()">ביטול</button>
+        <button class="btn btn-danger" style="margin-right:auto;" onclick="deleteManualPerson('${id}','${safeName}')">🗑️ מחק אדם</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+}
+
+window.saveEditPerson = async function(id) {
+  const g = fid => document.getElementById('ep-'+fid)?.value.trim() || '';
+  const name = g('name');
+  const errEl = document.getElementById('ep-err');
+  if(!name) { errEl.textContent='שם מלא הוא שדה חובה'; errEl.style.display='block'; return; }
+  const street = g('street'), houseNum = g('houseNum'), apt = g('apt');
+  await setDoc(doc(db,'people',id), {
+    name, tz: g('tz'), age: g('age'),
+    street, houseNum, apt,
+    address: [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
+    phone: g('phone'),
+  }, {merge:true});
+  document.getElementById('editPersonModalOverlay')?.remove();
+  showToast('✅ פרטים עודכנו בהצלחה');
+  writeLog('person_edited', name, 'עריכה ידנית');
+}
+
+window.deleteManualPerson = async function(id, name) {
+  if(!confirm(`האם למחוק את "${name}" מהרשימה?\nפעולה זו בלתי הפיכה.`)) return;
+  await deleteDoc(doc(db,'people',id));
+  try { await deleteDoc(doc(db,'shatil',id)); } catch(e){}
+  try { await deleteDoc(doc(db,'meser',id)); } catch(e){}
+  try { await deleteDoc(doc(db,'final',id)); } catch(e){}
+  document.getElementById('editPersonModalOverlay')?.remove();
+  showToast('🗑️ האדם נמחק מהרשימה');
+  writeLog('person_deleted', name, 'מחיקה ידנית');
+}
+
 window.renderDiyuvim = function() {
   const s = (document.getElementById('diyuvimSearch')||{value:''}).value.trim().toLowerCase();
   const sf = (document.getElementById('diyuvimFilter')||{value:''}).value;
@@ -3088,11 +3164,11 @@ window.renderDiyuvim = function() {
       <td style="font-size:12px;color:var(--text2);text-align:center;">${escapeHtml(r.houseNum||'—')}</td>
       <td style="font-size:12px;color:var(--text2);text-align:center;">${escapeHtml(r.apt||'—')}</td>
       <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${escapeHtml(r.phone||'—')}</td>
-      <td><textarea class="inline-input" placeholder="הערות" onchange="diyuvimSaveField('${r.id}','notes',this.value)" style="width:220px;min-height:52px;resize:vertical;font-size:12px;">${escapeHtml(r.notes||'')}</textarea></td>
       <td style="text-align:center;">
         <input type="checkbox" ${r.done?'checked':''} onchange="diyuvimToggleDone('${r.id}',this.checked)"
           style="width:20px;height:20px;cursor:pointer;accent-color:var(--present);">
       </td>
+      <td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="searchPersonFromDiyuvim('${escapeHtml(r.firstName||'')}','${escapeHtml(r.lastName||'')}')">🔍 חפש אדם</button></td>
       <td style="text-align:center;">${srcBadge}</td>
     </tr>`;
   }).join('');
@@ -3329,7 +3405,7 @@ window.renderAdminTab = async function() {
     allEl.innerHTML = approved.map(u=>`
       <tr style="border-bottom:1px solid var(--border);">
         <td style="padding:10px 14px;font-weight:600;">${u.name||'—'}</td>
-        <td style="padding:10px 14px;font-size:12px;color:var(--text2);">${u.username||u.email.replace('@meserkm.local','')}</td>
+        <td style="padding:10px 14px;font-size:12px;color:var(--text2);">${u.username||(u.email||'').split('@')[0]}</td>
         <td style="padding:10px 14px;">
           <select onchange="changeUserRole('${u.id}',this.value)" style="font-size:12px;padding:4px 8px;">
             ${['shatil','meser','kaa','editor','admin'].map(r=>
@@ -3451,15 +3527,16 @@ window.applyEditLocksAfterRender = function() {
   if(role === 'shatil') {
     lock([...document.querySelectorAll('#meserBody select, #meserBody input')]);
     lock([...document.querySelectorAll('#summaryBody select, #summaryBody input, #summaryBody button')]);
-    // Hide add person buttons on other tabs
-    document.querySelectorAll('[onclick*="meser"],[onclick*="summary"]').forEach(b=>{ if(b.getAttribute('onclick')?.includes('showAddRow')) b.style.display='none'; });
+    lock([...document.querySelectorAll('#diyuvimBody input, #diyuvimBody select, #diyuvimBody textarea, #diyuvimBody button')]);
+    document.querySelectorAll('button').forEach(b=>{ const oc=b.getAttribute('onclick'); if(oc==="showAddRow('meser')"||oc==="showAddRow('summary')") b.style.display='none'; });
   }
 
   // meser role: can only edit meser tab
   if(role === 'meser') {
     lock([...document.querySelectorAll('#shatilBody select, #shatilBody input')]);
     lock([...document.querySelectorAll('#summaryBody select, #summaryBody input, #summaryBody button')]);
-    document.querySelectorAll('[onclick*="shatil"],[onclick*="summary"]').forEach(b=>{ if(b.getAttribute('onclick')?.includes('showAddRow')) b.style.display='none'; });
+    lock([...document.querySelectorAll('#diyuvimBody input, #diyuvimBody select, #diyuvimBody textarea, #diyuvimBody button')]);
+    document.querySelectorAll('button').forEach(b=>{ const oc=b.getAttribute('onclick'); if(oc==="showAddRow('shatil')"||oc==="showAddRow('summary')") b.style.display='none'; });
   }
 
   // kaa role: can edit all except setup (already hidden by tab)

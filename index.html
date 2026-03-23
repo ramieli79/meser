@@ -547,16 +547,13 @@ input[type=file] { display: none; }
 <div id="tab-dashboard" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
   <div class="dash2-grid" id="dash2Grid">
     <div class="dash2-card c-total"><div class="label">סה"כ ברשימה</div><div class="val" id="d2Total">0</div></div>
-    <div class="dash2-card c-alive"><div class="label">ידועים / אותרו</div><div class="val" id="d2Alive" style="color:var(--present)">0</div><div class="sub" id="d2AlivePct"></div></div>
     <div class="dash2-card c-missing"><div class="label">נעדרים / לכודים</div><div class="val" id="d2Missing" style="color:var(--absent)">0</div><div class="sub" id="d2MissingPct"></div></div>
-    <div class="dash2-card c-chalal"><div class="label">חללים</div><div class="val" id="d2Chalal" style="color:#1f2937">0</div></div>
-    <div class="dash2-card c-gap" style="border-top-color:var(--mismatch)"><div class="label">פער — טרם נספרו</div><div class="val" id="d2Gap" style="color:var(--mismatch)">0</div><div class="sub">ללא סטטוס בשום צוות</div></div>
-    <div class="dash2-card c-mismatch"><div class="label">סתירות ⚠️</div><div class="val" id="d2Mismatch" style="color:var(--warn)">0</div><div class="sub">שטח ≠ מס"ר</div></div>
-    <div class="dash2-card c-manual"><div class="label">עודכנו ידנית (כ"א)</div><div class="val" id="d2Manual" style="color:var(--warn)">0</div></div>
+    <div class="dash2-card c-gap" style="border-top-color:var(--mismatch)"><div class="label">טרם נספרו</div><div class="val" id="d2Gap" style="color:var(--mismatch)">0</div><div class="sub">ללא שום סטטוס</div></div>
+    <div class="dash2-card" style="border-top-color:var(--present)"><div class="label">אושר סופית ע"י כ"א ✅</div><div class="val" id="d2Verified" style="color:var(--present)">0</div><div class="sub" id="d2VerifiedPct"></div></div>
   </div>
 
-  <!-- COVERAGE CHART + BREAKDOWNS side by side -->
-  <div style="display:grid;grid-template-columns:220px 1fr 1fr;gap:16px;margin-bottom:16px;align-items:start;">
+  <!-- COVERAGE CHART + FINAL BREAKDOWN side by side -->
+  <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;margin-bottom:16px;align-items:start;">
 
     <!-- DONUT -->
     <div class="section" style="padding:16px;display:flex;flex-direction:column;align-items:center;">
@@ -572,24 +569,16 @@ input[type=file] { display: none; }
       <div id="donutLegend" style="margin-top:12px;display:flex;flex-direction:column;gap:6px;width:100%;"></div>
     </div>
 
-    <!-- SHATIL BREAKDOWN -->
+    <!-- FINAL BREAKDOWN -->
     <div class="section">
-      <div class="section-header"><span class="section-title">🔵 פירוט סטטוס — צוות שטח</span></div>
-      <table class="breakdown-table" id="breakShatil"></table>
-    </div>
-
-    <!-- MESER BREAKDOWN -->
-    <div class="section">
-      <div class="section-header"><span class="section-title">🟢 פירוט סטטוס — צוות מס"ר</span></div>
-      <table class="breakdown-table" id="breakMeser"></table>
+      <div class="section-header"><span class="section-title">⭐ פירוט סטטוס משוקלל סופי (כ"א)</span></div>
+      <table class="breakdown-table" id="breakFinal"></table>
     </div>
   </div>
 
-  <!-- FINAL BREAKDOWN -->
-  <div class="section">
-    <div class="section-header"><span class="section-title">⭐ פירוט סטטוס — משוקלל סופי (כ"א)</span></div>
-    <table class="breakdown-table" id="breakFinal"></table>
-  </div>
+  <!-- hidden tables kept for JS compatibility -->
+  <table id="breakShatil" style="display:none;"></table>
+  <table id="breakMeser" style="display:none;"></table>
 
   <!-- STATUS + LOCK -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
@@ -617,9 +606,16 @@ input[type=file] { display: none; }
   <div class="section" style="margin-top:16px;">
     <div class="section-header">
       <span class="section-title">📈 גרף התקדמות — אנשים שאותרו לאורך זמן</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);">מ:</label>
+        <input type="datetime-local" id="chartFrom" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;" onchange="renderProgressChart()">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);">עד:</label>
+        <input type="datetime-local" id="chartTo" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border2);border-radius:6px;font-family:Heebo,sans-serif;" onchange="renderProgressChart()">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('chartFrom').value='';document.getElementById('chartTo').value='';renderProgressChart()">הצג הכל</button>
+      </div>
     </div>
     <div style="padding:16px;">
-      <div id="progressChartWrap" style="position:relative;height:180px;width:100%;">
+      <div id="progressChartWrap" style="position:relative;height:220px;width:100%;">
         <canvas id="progressChart"></canvas>
       </div>
       <div id="progressChartEmpty" style="text-align:center;color:var(--text3);font-size:13px;padding:40px 0;display:none;">אין מספיק נתוני לוג להצגת גרף</div>
@@ -844,8 +840,7 @@ input[type=file] { display: none; }
             <th title="הוספה ידנית">ידני</th>
             <th class="sortable" onclick="sortTable('shatil','status')">סטטוס</th>
             <th>שם המדווח</th>
-            <th>טלפון מדווח</th>
-            <th>טלפון נוסף</th>
+            <th>טלפון</th>
             <th>הערות</th>
           </tr>
         </thead>
@@ -912,7 +907,7 @@ input[type=file] { display: none; }
             <th title="הוספה ידנית">ידני</th>
             <th class="sortable" onclick="sortTable('meser','status')">סטטוס</th>
             <th>שם המדווח</th>
-            <th>טלפון נוסף</th>
+            <th>טלפון</th>
             <th>הערות</th>
           </tr>
         </thead>
@@ -1412,6 +1407,18 @@ window.currentRole = null; // 'shatil' | 'meser' | 'kaa' | 'editor' | 'admin'
 
 window.S = { people: [], shatil: {}, meser: {}, final: {}, diyuvim: [] };
 
+// ── SEARCH HELPER: order-independent word matching ──
+function matchesSearch(name, query) {
+  if(!query) return true;
+  const normalize = s => s.trim().replace(/\s+/g,' ').toLowerCase();
+  const qWords = normalize(query).split(' ').filter(Boolean);
+  const nWords = normalize(name||'').split(' ');
+  // Every query word must appear in some name word (startsWith)
+  return qWords.every(qw => nWords.some(nw => nw.includes(qw)));
+}
+
+
+
 // ── AUTH STATE ──
 onAuthStateChanged(auth, async user => {
   if(!user) {
@@ -1718,41 +1725,41 @@ window.renderDashboard2 = function() {
   const n = S.people.length;
   if(!n) return;
 
-  let alive=0, missing=0, chalal=0, gap=0, mismatch=0, manual=0, filled=0;
+  let alive=0, missing=0, chalal=0, gap=0, mismatch=0, manual=0, filled=0, verified=0;
   const shatilCounts={}, meserCounts={}, finalCounts={};
 
   S.people.forEach(p=>{
     const f = computeFinal(p.id);
     const sh = (S.shatil[p.id]||{}).status||'';
     const ms = (S.meser[p.id]||{}).status||'';
+    const fin = f.status||'';
+    const manualStatus = S.final[p.id]?.manualStatus||'';
 
-    // gap = no status in either team
-    if(!sh && !ms) gap++;
+    // gap = no status at all — not in final, not manual, not sh/ms
+    if(!fin && !manualStatus && !sh && !ms) gap++;
 
     if(sh) shatilCounts[sh] = (shatilCounts[sh]||0)+1;
     if(ms) meserCounts[ms]  = (meserCounts[ms]||0)+1;
-    if(f.status) finalCounts[f.status] = (finalCounts[f.status]||0)+1;
+    if(fin) finalCounts[fin] = (finalCounts[fin]||0)+1;
 
-    const s=f.status;
+    const s=fin;
     if(s==="מאותר חי"||s==="שוהה במסר"||s==="פונה לבית חולים"||s==="התפנה עצמאית למשפחה/חברים"||s==="לא היה בארוע") alive++;
     else if(s==='נעדר'||s==='לכוד שנוצר עמו קשר') missing++;
     else if(s==='חלל') chalal++;
     if(f.match==='לא תואם') mismatch++;
     if(f.source==='manual') manual++;
     if(sh) filled++;
+    if(S.final[p.id]?.verified) verified++;
   });
 
   const pct = v => n>0 ? Math.round(v/n*100)+'%' : '0%';
 
   document.getElementById('d2Total').textContent = n;
-  document.getElementById('d2Alive').textContent = alive;
-  document.getElementById('d2AlivePct').textContent = pct(alive)+' מהרשימה';
   document.getElementById('d2Missing').textContent = missing;
   document.getElementById('d2MissingPct').textContent = pct(missing)+' מהרשימה';
-  document.getElementById('d2Chalal').textContent = chalal;
   document.getElementById('d2Gap').textContent = gap;
-  document.getElementById('d2Mismatch').textContent = mismatch;
-  document.getElementById('d2Manual').textContent = manual;
+  document.getElementById('d2Verified').textContent = verified;
+  document.getElementById('d2VerifiedPct').textContent = pct(verified)+' מהרשימה';
 
   // Breakdown tables
   const STATUSES = ['מאותר חי','שוהה במסר','פונה לבית חולים','התפנה עצמאית למשפחה/חברים','לכוד שנוצר עמו קשר','נעדר','חלל','לא היה בארוע'];
@@ -1787,11 +1794,12 @@ window.renderDashboard2 = function() {
         <td style="font-size:11px;color:var(--text3);">${Math.round((counts[s]||0)/n*100)}% <span style="font-size:10px;color:var(--accent);">↗</span></td>
       </tr>`).join('');
     const totalRow = total > 0 ? `<tr class="bt-total-row"><td colspan="2" style="font-size:12px;">סה"כ מולא</td><td colspan="2" style="font-size:13px;font-weight:800;color:var(--accent);">${total} (${Math.round(total/n*100)}%)</td></tr>` : '';
-    const manualRow = `<tr style="background:var(--warn-light);border-top:2px solid var(--border);">
-      <td colspan="2" style="font-size:12px;font-weight:700;color:var(--warn);">✏️ עודכנו ידנית ע"י כ"א</td>
-      <td colspan="2" style="font-size:13px;font-weight:800;color:var(--warn);">${manualCount} (${n>0?Math.round(manualCount/n*100):0}%)</td>
+    const verifiedCount = S.people.filter(p=>S.final[p.id]?.verified).length;
+    const verifiedRow = `<tr style="background:var(--present-light);border-top:2px solid var(--border);">
+      <td colspan="2" style="font-size:12px;font-weight:700;color:var(--present);">✅ אושרו סופית ע"י כ"א</td>
+      <td colspan="2" style="font-size:13px;font-weight:800;color:var(--present);">${verifiedCount} (${n>0?Math.round(verifiedCount/n*100):0}%)</td>
     </tr>`;
-    document.getElementById(el).innerHTML = (rows || '<tr><td colspan="4" style="padding:16px;color:var(--text3);text-align:center;">אין נתונים</td></tr>') + totalRow + manualRow;
+    document.getElementById(el).innerHTML = (rows || '<tr><td colspan="4" style="padding:16px;color:var(--text3);text-align:center;">אין נתונים</td></tr>') + totalRow + verifiedRow;
   }
 
   makeBreakdown(shatilCounts, 'breakShatil');
@@ -1896,7 +1904,7 @@ window.renderSummary = function() {
     if(sf&&f.status!==sf)return false;
     if(mf&&f.match!==mf)return false;
     const searchAddr = [p.address, p.street, p.houseNum, p.apt ? 'דירה '+p.apt : '', p.apt].filter(Boolean).join(' ');
-    if(s&&!p.name?.includes(s)&&!p.tz?.includes(s)&&!searchAddr.includes(s))return false;
+    if(s&&!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!searchAddr.includes(s))return false;
     return true;
   });
   people = sortPeople(people, 'summary');
@@ -1968,7 +1976,7 @@ window.renderShatil = function() {
     if(window._similarFilter) return window._similarFilter.ids.has(p.id);
     if(sf){const v=(S.shatil[p.id]||{}).status||'';if(v!==sf)return false;}
     const sAddr1 = [p.address, p.street, p.houseNum, p.apt ? "דירה "+p.apt : "", p.apt].filter(Boolean).join(" ");
-    if(s&&!p.name?.includes(s)&&!p.tz?.includes(s)&&!sAddr1.includes(s))return false;
+    if(s&&!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!sAddr1.includes(s))return false;
     return true;
   });
   people = sortPeople(people, 'shatil');
@@ -2003,7 +2011,6 @@ window.renderShatil = function() {
       <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
       <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
-      <td><input class="inline-input" value="${sh.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('shatil','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
       ${isManual ? `<td><button class="btn btn-ghost btn-sm" onclick="openEditPersonModal('${p.id}')">✏️ עריכה</button></td>` : '<td></td>'}
     </tr>`;
@@ -2018,7 +2025,7 @@ window.renderMeser = function() {
     if(sf){const v=(S.meser[p.id]||{}).status||'';if(v!==sf)return false;}
     if(s){
       const sAddr = [p.address,p.street,p.houseNum,p.apt?'דירה '+p.apt:'',p.apt].filter(Boolean).join(' ');
-      if(!p.name?.includes(s)&&!p.tz?.includes(s)&&!sAddr.includes(s))return false;
+      if(!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!sAddr.includes(s))return false;
     }
     return true;
   });
@@ -2587,7 +2594,6 @@ function renderShatilDuplicates() {
       <td><select class="inline-select" onchange="inlineSave('shatil','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${sh.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('shatil','${p.id}','reporter',this.value)"></td>
       <td><input class="inline-input" value="${sh.reporterPhone||''}" placeholder="טלפון" onchange="inlineSave('shatil','${p.id}','reporterPhone',this.value)" style="width:100px;"></td>
-      <td><input class="inline-input" value="${sh.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('shatil','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${sh.notes||''}" placeholder="הערות" onchange="inlineSave('shatil','${p.id}','notes',this.value)" style="width:150px;"></td>
     </tr>`;
   }).join('');
@@ -2619,7 +2625,6 @@ function renderMeserDuplicates() {
       <td style="text-align:center;">${p.id?.startsWith('manual_')?'<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--absent);" title="הוסף ידנית"></span>':''}</td>
       <td><select class="inline-select" onchange="inlineSave('meser','${p.id}','status',this.value)">${selOpts}</select></td>
       <td><input class="inline-input" value="${ms.reporter||''}" placeholder="שם מדווח" onchange="inlineSave('meser','${p.id}','reporter',this.value)"></td>
-      <td><input class="inline-input" value="${ms.phone2||''}" placeholder="טלפון נוסף" onchange="inlineSave('meser','${p.id}','phone2',this.value)" style="width:110px;"></td>
       <td><input class="inline-input" value="${ms.notes||''}" placeholder="הערות" onchange="inlineSave('meser','${p.id}','notes',this.value)" style="width:150px;"></td>
     </tr>`;
   }).join('');
@@ -3061,6 +3066,21 @@ window.searchPersonFromDiyuvim = function(firstName, lastName) {
   setTimeout(() => { renderSummary(); }, 100);
 }
 
+window.addPersonFromDiyuvim = function(firstName, lastName, tz, phone, street, houseNum, apt) {
+  switchTab('summary');
+  setTimeout(() => {
+    showAddRow('summary');
+    const s = v => document.getElementById(v);
+    if(s('new-summary-firstName')) s('new-summary-firstName').value = firstName||'';
+    if(s('new-summary-lastName'))  s('new-summary-lastName').value  = lastName||'';
+    if(s('new-summary-tz'))        s('new-summary-tz').value        = tz||'';
+    if(s('new-summary-phone'))     s('new-summary-phone').value     = phone||'';
+    if(s('new-summary-street'))    s('new-summary-street').value    = street||'';
+    if(s('new-summary-houseNum'))  s('new-summary-houseNum').value  = houseNum||'';
+    if(s('new-summary-apt'))       s('new-summary-apt').value       = apt||'';
+  }, 200);
+}
+
 // ── EDIT / DELETE MANUAL PERSON MODAL ──
 window.openEditPersonModal = function(id) {
   const p = S.people.find(x => x.id === id);
@@ -3168,7 +3188,10 @@ window.renderDiyuvim = function() {
         <input type="checkbox" ${r.done?'checked':''} onchange="diyuvimToggleDone('${r.id}',this.checked)"
           style="width:20px;height:20px;cursor:pointer;accent-color:var(--present);">
       </td>
-      <td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="searchPersonFromDiyuvim('${escapeHtml(r.firstName||'')}','${escapeHtml(r.lastName||'')}')">🔍 חפש אדם</button></td>
+      <td style="text-align:center;white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="searchPersonFromDiyuvim('${escapeHtml(r.firstName||'')}','${escapeHtml(r.lastName||'')}')">🔍 חפש אדם</button>
+        <button class="btn btn-primary btn-sm" style="margin-right:4px;" onclick="addPersonFromDiyuvim('${escapeHtml(r.firstName||'')}','${escapeHtml(r.lastName||'')}','${escapeHtml(r.tz||'')}','${escapeHtml(r.phone||'')}','${escapeHtml(r.street||'')}','${escapeHtml(r.houseNum||'')}','${escapeHtml(r.apt||'')}')">➕ הוסף אדם</button>
+      </td>
       <td style="text-align:center;">${srcBadge}</td>
     </tr>`;
   }).join('');
@@ -3717,10 +3740,18 @@ async function renderProgressChart() {
     if(wrap) wrap.style.display='block';
     if(emptyEl) emptyEl.style.display='none';
 
+    // Apply date/time filters
+    const fromEl = document.getElementById('chartFrom');
+    const toEl   = document.getElementById('chartTo');
+    const fromTs = fromEl?.value ? new Date(fromEl.value).getTime() : 0;
+    const toTs   = toEl?.value   ? new Date(toEl.value).getTime()   : Infinity;
+
     // Group by hour — count cumulative "located" statuses
     const hourMap = {};
     logs.forEach(l => {
       const d = l.ts.toDate ? l.ts.toDate() : new Date(l.ts);
+      const t = d.getTime();
+      if(t < fromTs || t > toTs) return; // filter
       const key = d.toISOString().slice(0,13); // YYYY-MM-DDTHH
       if(!hourMap[key]) hourMap[key] = 0;
       // Count positive status changes

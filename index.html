@@ -2271,38 +2271,46 @@ function parseCSVRows(text) {
   const lines = text.trim().split('\n').map(l=>l.replace(/\r$/,''));
   // Find header row
   let headerIdx = 0;
+  const allSynonyms = Object.values(COL_MAP).flat();
   for(let i=0; i<Math.min(5,lines.length); i++){
-    const l = lines[i];
-    if(Object.values(COL_MAP).flat().some(s => l.includes(s))) { headerIdx=i; break; }
+    if(allSynonyms.some(s => lines[i].includes(s))) { headerIdx=i; break; }
   }
   const {map} = detectColumns(lines[headerIdx]);
-  const get = (parts,field) => (map[field]!==undefined ? parts[map[field]] : '') || '';
+  // get first col for single-value fields; join all cols for multi-value fields
+  const getSingle = (parts,field) => {
+    const idxs = map[field]||[];
+    const i = idxs[0];
+    return (i!==undefined && i<parts.length) ? (parts[i]||'').trim().replace(/^"|"$/g,'') : '';
+  };
+  const getMulti = (parts,field,sep=' | ') => {
+    return (map[field]||[]).map(i=>i<parts.length?(parts[i]||'').trim().replace(/^"|"$/g,''):'').filter(Boolean).join(sep);
+  };
 
   const rows = [];
   for(let i=headerIdx+1; i<lines.length; i++){
     const parts = lines[i].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
     if(parts.every(p=>!p)) continue;
-    const street = get(parts,'street');
-    const houseNum = get(parts,'houseNum');
-    const apt = get(parts,'apt');
-    const addrFree = get(parts,'address');
-    const rawTz = get(parts,'tz').replace(/[^0-9]/g,'');
+    const street = getSingle(parts,'street');
+    const houseNum = getSingle(parts,'houseNum');
+    const apt = getSingle(parts,'apt');
+    const addrFree = getSingle(parts,'address');
+    const rawTz = getSingle(parts,'tz').replace(/[^0-9]/g,'');
     const normTz = rawTz.length===8 ? '0'+rawTz : rawTz;
-    const fn = get(parts,'firstName');
-    const ln = get(parts,'lastName');
-    const nm = get(parts,'name') || [fn,ln].filter(Boolean).join(' ');
+    const fn = getMulti(parts,'firstName',' ');
+    const ln = getMulti(parts,'lastName',' ');
+    const nm = getMulti(parts,'name',' ') || [fn,ln].filter(Boolean).join(' ');
     rows.push({
       _line: i+1,
       index: String(i-headerIdx),
       tz: normTz,
       name: nm,
       firstName: fn, lastName: ln,
-      age: get(parts,'age'),
+      age: getSingle(parts,'age'),
       street, houseNum, apt,
       address: addrFree || [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
-      phone: get(parts,'phone'),
-      phonesExtra: get(parts,'phonesExtra'),
-      phoneWelfare: get(parts,'phoneWelfare'),
+      phone: getMulti(parts,'phone'),
+      phonesExtra: getMulti(parts,'phonesExtra'),
+      phoneWelfare: getMulti(parts,'phoneWelfare'),
     });
   }
   return rows;
@@ -2380,7 +2388,7 @@ window.handleImport = async function(e) {
   const allLines = text.trim().split('\n').map(l=>l.replace(/\r$/,''));
   let headerIdx = 0;
   for(let i=0;i<Math.min(5,allLines.length);i++){
-    if(Object.values(COL_MAP).flat().some(s=>allLines[i].includes(s))){ headerIdx=i; break; }
+    if(Object.values(COL_MAP).flat().some(s=>typeof s==='string' && allLines[i].includes(s))){ headerIdx=i; break; }
   }
   const rawHeaders = allLines[headerIdx].split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,''));
   const {map: initialMap} = detectColumns(allLines[headerIdx]);

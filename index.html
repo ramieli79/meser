@@ -2496,7 +2496,12 @@ function renderMapperGrid() {
   const wrap = document.getElementById('unmatchedWrap');
   const pool = document.getElementById('unmatchedPool');
   if(wrap) wrap.style.display = unmatched.length ? 'block' : 'none';
-  if(pool) pool.innerHTML = unmatched.map(({h})=>`<span style="background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);">${h}</span>`).join('');
+  if(pool) pool.innerHTML = unmatched.map(({h,i})=>
+    `<div draggable="true" data-colidx="${i}" data-fromfield="__pool__"
+      style="display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text);cursor:grab;">
+      <span style="font-size:10px;color:var(--text3);">⠿</span>${h}
+    </div>`
+  ).join('');
 
   // Stats
   const matchedCount = Object.values(_mapperMap).filter(v=>Array.isArray(v)?v.length>0:v!==undefined).length;
@@ -2514,6 +2519,18 @@ function renderMapperGrid() {
     const b = document.getElementById(id);
     if(b){ b.disabled=!ok; b.style.opacity=ok?'1':'0.4'; }
   });
+}
+
+// Drop back to pool — removes chip from its field
+window.dropToPool = function(e) {
+  e.preventDefault();
+  const ci = parseInt(e.dataTransfer.getData('text/plain'));
+  const fromField = e.dataTransfer.getData('fromfield');
+  if(isNaN(ci) || !fromField || fromField === '__pool__') return;
+  _mapperMap[fromField] = (_mapperMap[fromField]||[]).filter(x=>x!==ci);
+  if(!_mapperMap[fromField].length) delete _mapperMap[fromField];
+  renderMapperGrid();
+  recomputePreview();
 }
 
 // Card drag handler — called from ondrop on .mapper-card

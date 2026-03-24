@@ -465,7 +465,7 @@ input[type=file] { display: none; }
 </header>
 
 <!-- TABS -->
-<div class="tabs">
+<div class="tabs" style="position:relative;z-index:101;">
   <div class="tab active" onclick="switchTab('shatil')">🔵 צוות שטח</div>
   <div class="tab" onclick="switchTab('meser')">🟢 צוות מס&quot;ר</div>
   <div class="tab" onclick="switchTab('summary')">📋 רשימה כוללת</div>
@@ -990,7 +990,7 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
+<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;position:relative;z-index:1;">
   <!-- IMPORT/EXPORT SECTION -->
   <div style="padding:20px 28px 0;">
     <div class="section" style="margin-bottom:20px;">
@@ -1148,7 +1148,9 @@ input[type=file] { display: none; }
                 <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">ת"ז</th>
                 <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">שם מלא</th>
                 <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">גיל</th>
-                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">כתובת</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">רחוב</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">מס' בית</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">דירה</th>
                 <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">טלפון</th>
               </tr></thead>
               <tbody id="previewBody"></tbody>
@@ -2224,7 +2226,7 @@ const COL_MAP = {
   name:        ['שם מלא','שם','name','שם פרטי ומשפחה'],
   age:         ['גיל','age'],
   street:      ['שם רחוב','רחוב','street'],
-  houseNum:    ['מספר בית','מס בית','מס׳ בית','house','בית'],
+  houseNum:    ['מספר בית','מספר ','מס בית','מס׳ בית','house','בית'],
   apt:         ['מספר דירה','דירה','apt','apartment'],
   address:     ['כתובת טקסט חופשי','כתובת','address','כתובת מלאה'],
   phone:       ['טלפון פרטי','טלפון','phone','נייד','סלולרי'],
@@ -2415,7 +2417,6 @@ function renderMapperGrid() {
       <div style="padding:6px 8px 8px;min-height:34px;display:flex;align-items:center;justify-content:center;">
         ${colName
           ? `<div draggable="true" data-colidx="${colIdx}" data-fromfield="${field}"
-              ondragstart="dragStart(event)"
               style="background:${matched?'#ecfdf5':'var(--surface2)'};border:1px solid ${borderColor};border-radius:6px;padding:4px 8px;font-size:11px;color:${matched?'#059669':'var(--text2)'};cursor:grab;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
               title="${colName}">${colName}</div>`
           : `<span style="font-size:10px;color:var(--text3);font-style:italic;">גרור לכאן</span>`
@@ -2433,7 +2434,6 @@ function renderMapperGrid() {
     wrap.style.display = unmatched.length ? 'block' : 'none';
     pool.innerHTML = unmatched.map(({h,i})=>
       `<div draggable="true" data-colidx="${i}" data-fromfield="__pool__"
-        ondragstart="dragStart(event)"
         style="background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text);cursor:grab;display:flex;align-items:center;gap:6px;">
         <span style="font-size:10px;color:var(--text3);">⠿</span>${h}
       </div>`
@@ -2459,38 +2459,62 @@ function renderMapperGrid() {
 
 let _dragColIdx = null;
 let _dragFromField = null;
-window.dragStart = function(e) {
-  _dragColIdx = parseInt(e.currentTarget.dataset.colidx);
-  _dragFromField = e.currentTarget.dataset.fromfield;
+
+// ── Event delegation for drag & drop (works reliably on dynamically generated elements) ──
+document.addEventListener('dragstart', function(e) {
+  const el = e.target.closest('[data-colidx]');
+  if(!el) return;
+  _dragColIdx = parseInt(el.dataset.colidx);
+  _dragFromField = el.dataset.fromfield || '__pool__';
   e.dataTransfer.effectAllowed = 'move';
-}
-window.dropToCard = function(e, targetField) {
+  e.dataTransfer.setData('text/plain', _dragColIdx); // required for Firefox
+});
+
+document.addEventListener('dragover', function(e) {
+  const card = e.target.closest('.mapper-card');
+  const pool = e.target.closest('#unmatchedPool');
+  if(card || pool) { e.preventDefault(); }
+  if(card) card.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.25)';
+});
+
+document.addEventListener('dragleave', function(e) {
+  const card = e.target.closest('.mapper-card');
+  if(card && !card.contains(e.relatedTarget)) card.style.boxShadow = '';
+});
+
+document.addEventListener('drop', function(e) {
+  const card = e.target.closest('.mapper-card');
+  const pool = e.target.closest('#unmatchedPool');
+  if(!card && !pool) return;
   e.preventDefault();
-  e.currentTarget.style.boxShadow = '';
   if(_dragColIdx === null) return;
-  // If source was another card, clear it first
-  if(_dragFromField && _dragFromField !== '__pool__') {
-    delete _mapperMap[_dragFromField];
+
+  if(card) {
+    const targetField = card.dataset.field;
+    if(!targetField) return;
+    card.style.boxShadow = '';
+    // Clear source
+    if(_dragFromField && _dragFromField !== '__pool__') delete _mapperMap[_dragFromField];
+    // Swap: if target already mapped to different col, send old col back to pool
+    // (just delete it — it'll appear in pool automatically)
+    if(_mapperMap[targetField] !== undefined && _mapperMap[targetField] !== _dragColIdx) {
+      delete _mapperMap[targetField];
+    }
+    _mapperMap[targetField] = _dragColIdx;
+  } else if(pool) {
+    // Drop back to pool = remove mapping
+    if(_dragFromField && _dragFromField !== '__pool__') delete _mapperMap[_dragFromField];
   }
-  // If target field already has a col, send it to pool (just delete mapping)
-  if(_mapperMap[targetField] !== undefined && _mapperMap[targetField] !== _dragColIdx) {
-    delete _mapperMap[targetField];
-  }
-  _mapperMap[targetField] = _dragColIdx;
+
   _dragColIdx = null; _dragFromField = null;
   renderMapperGrid();
   recomputePreview();
-}
-window.dropToPool = function(e) {
-  e.preventDefault();
-  if(_dragColIdx === null) return;
-  if(_dragFromField && _dragFromField !== '__pool__') {
-    delete _mapperMap[_dragFromField];
-  }
-  _dragColIdx = null; _dragFromField = null;
-  renderMapperGrid();
-  recomputePreview();
-}
+});
+
+// Keep these as no-ops for backward compat with any remaining inline calls
+window.dragStart = function() {};
+window.dropToCard = function() {};
+window.dropToPool = function() {};
 
 function recomputePreview() {
   const rows = buildRowsFromMapping();
@@ -2505,7 +2529,9 @@ function recomputePreview() {
       <td style="padding:7px 10px;font-size:12px;${!r.tz?'color:var(--text3);':''}">${r.tz||'—'}</td>
       <td style="padding:7px 10px;font-weight:600;${!r.name?'color:var(--absent);':''}">${r.name||'❌ חסר'}</td>
       <td style="padding:7px 10px;color:var(--text2);">${r.age||'—'}</td>
-      <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${r.address||r.street||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${r.street||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2);text-align:center;">${r.houseNum||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2);text-align:center;">${r.apt||'—'}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${r.phone||'—'}</td>
     </tr>`;
   }).join('');

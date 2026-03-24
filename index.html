@@ -548,7 +548,7 @@ input[type=file] { display: none; }
   <div class="dash2-grid" id="dash2Grid">
     <div class="dash2-card c-total"><div class="label">סה"כ ברשימה</div><div class="val" id="d2Total">0</div></div>
     <div class="dash2-card c-missing"><div class="label">נעדרים / לכודים</div><div class="val" id="d2Missing" style="color:var(--absent)">0</div><div class="sub" id="d2MissingPct"></div></div>
-    <div class="dash2-card c-gap" style="border-top-color:var(--mismatch)"><div class="label">טרם נספרו</div><div class="val" id="d2Gap" style="color:var(--mismatch)">0</div><div class="sub">ללא שום סטטוס</div></div>
+    <div class="dash2-card c-gap" style="border-top-color:var(--mismatch)"><div class="label">טרם נספרו</div><div class="val" id="d2Gap" style="color:var(--mismatch)">0</div><div class="sub">ללא שום סטטוס סופי</div></div>
     <div class="dash2-card" style="border-top-color:var(--present)"><div class="label">אושר סופית ע"י כ"א ✅</div><div class="val" id="d2Verified" style="color:var(--present)">0</div><div class="sub" id="d2VerifiedPct"></div></div>
   </div>
 
@@ -557,7 +557,7 @@ input[type=file] { display: none; }
 
     <!-- DONUT -->
     <div class="section" style="padding:16px;display:flex;flex-direction:column;align-items:center;">
-      <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px;">כיסוי — לפי עמדת רישום</div>
+      <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px;">כיסוי — לפי שטח ומס"ר</div>
       <div style="position:relative;width:160px;height:160px;">
         <svg id="coverageDonut" viewBox="0 0 200 200" style="width:160px;height:160px;"></svg>
         <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
@@ -655,6 +655,7 @@ input[type=file] { display: none; }
       </div>
       <select id="summaryFilter" onchange="renderSummary()">
         <option value="">כל הסטטוסים</option>
+        <option value="__empty__">⬜ ללא סטטוס</option>
         <option value="מאותר חי">🟢 מאותר חי</option>
         <option value="שוהה במסר">🔵 שוהה במסר</option>
         <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
@@ -804,6 +805,7 @@ input[type=file] { display: none; }
       </div>
       <select id="shatilFilter" onchange="renderShatil()">
         <option value="">כל הסטטוסים</option>
+        <option value="__empty__">⬜ ללא סטטוס</option>
         <option value="מאותר חי">🟢 מאותר חי</option>
         <option value="שוהה במסר">🔵 שוהה במסר</option>
         <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
@@ -874,6 +876,7 @@ input[type=file] { display: none; }
       </div>
       <select id="meserFilter" onchange="renderMeser()">
         <option value="">כל הסטטוסים</option>
+        <option value="__empty__">⬜ ללא סטטוס</option>
         <option value="שוהה במסר">🔵 שוהה במסר</option>
         <option value="פונה לבית חולים">🏥 פונה לבית חולים</option>
         <option value="נעדר">❓ נעדר</option>
@@ -1874,7 +1877,7 @@ window.renderDashboard2 = function() {
     { val: onlyShatil, color: '#2563eb', label: 'שטח בלבד' },
     { val: both,       color: '#00b894', label: 'שתי עמדות' },
     { val: onlyMeser,  color: '#059669', label: 'מס"ר בלבד' },
-    { val: neither,    color: '#e2e6f0', label: 'טרם נבדק' },
+    { val: neither,    color: '#e2e6f0', label: 'לא בשטח ולא במס"ר' },
   ];
 
   const cx=100, cy=100, r=76, stroke=28;
@@ -1944,7 +1947,7 @@ window.renderSummary = function() {
   let people=S.people.filter(p=>{
     if(window._similarFilter) return window._similarFilter.ids.has(p.id);
     const f=computeFinal(p.id);
-    if(sf&&f.status!==sf)return false;
+    if(sf&&(sf==='__empty__'?f.status!=='':f.status!==sf))return false;
     if(mf&&f.match!==mf)return false;
     const searchAddr = [p.address, p.street, p.houseNum, p.apt ? 'דירה '+p.apt : '', p.apt].filter(Boolean).join(' ');
     if(s&&!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!searchAddr.includes(s))return false;
@@ -2017,7 +2020,7 @@ window.renderShatil = function() {
   const sf=(document.getElementById('shatilFilter')||{value:''}).value;
   let people=S.people.filter(p=>{
     if(window._similarFilter) return window._similarFilter.ids.has(p.id);
-    if(sf){const v=(S.shatil[p.id]||{}).status||'';if(v!==sf)return false;}
+    if(sf){const v=(S.shatil[p.id]||{}).status||'';if(sf==='__empty__'?v!=='':v!==sf)return false;}
     const sAddr1 = [p.address, p.street, p.houseNum, p.apt ? "דירה "+p.apt : "", p.apt].filter(Boolean).join(" ");
     if(s&&!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!sAddr1.includes(s))return false;
     return true;
@@ -2065,7 +2068,7 @@ window.renderMeser = function() {
   const sf=(document.getElementById('meserFilter')||{value:''}).value;
   let people=S.people.filter(p=>{
     if(window._similarFilter) return window._similarFilter.ids.has(p.id);
-    if(sf){const v=(S.meser[p.id]||{}).status||'';if(v!==sf)return false;}
+    if(sf){const v=(S.meser[p.id]||{}).status||'';if(sf==='__empty__'?v!=='':v!==sf)return false;}
     if(s){
       const sAddr = [p.address,p.street,p.houseNum,p.apt?'דירה '+p.apt:'',p.apt].filter(Boolean).join(' ');
       if(!matchesSearch(p.name,s)&&!p.tz?.includes(s)&&!sAddr.includes(s))return false;

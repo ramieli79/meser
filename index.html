@@ -3058,7 +3058,13 @@ async function fetchSheetRows() {
   if(!data.table) throw new Error('No table in response');
   const cols = data.table.cols.map(c => (c.label || '').trim());
   const rows = (data.table.rows || []).map(r =>
-    (r.c || []).map(cell => (cell && cell.v != null) ? String(cell.v).trim() : '')
+    (r.c || []).map(cell => {
+      if(!cell || cell.v == null) return '';
+      const s = String(cell.v).trim();
+      // Restore leading zero for 8-digit IDs (Google strips it when storing as number)
+      if(/^\d{8}$/.test(s)) return '0' + s;
+      return s;
+    })
   );
   return { cols, rows };
 }

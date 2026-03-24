@@ -3048,35 +3048,36 @@ const SHEET_GID = '977613762';
 
 // Fetch via Google Visualization API — works on HTTPS hosting
 async function fetchSheetRows() {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
-  console.log('fetchSheetRows URL:', url);
+  // Use CSV export — preserves text values including apostrophe-prefixed cells (gviz/tq drops them)
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SHEET_GID}`;
   const res = await fetch(url, {signal: AbortSignal.timeout(10000)});
-  console.log('fetchSheetRows status:', res.status, res.ok);
   if(!res.ok) throw new Error('HTTP ' + res.status);
-  const raw = await res.text();
-  // Strip JSONP wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
-  const jsonStr = raw.replace(/^[\s\S]*?\(/, '').replace(/\);?\s*$/, '');
-  const data = JSON.parse(jsonStr);
-  if(!data.table) throw new Error('No table in response');
-  const cols = data.table.cols.map(c => (c.label || '').trim());
-  const rows = (data.table.rows || []).map(r =>
-    (r.c || []).map(cell => {
-      if(!cell) return '';
-      // Use formatted value (cell.f) first — it preserves leading zeros that cell.v drops
-      const f = (cell.f != null) ? String(cell.f).trim() : null;
-      const v = (cell.v != null) ? String(cell.v).trim() : null;
-      const s = f || v || '';
-      // Fallback: restore leading zero for 8-digit numbers
-      if(/^\d{8}$/.test(s)) return '0' + s;
+  let text = await res.text();
+  text = text.replace(/^\uFEFF/, ''); // remove BOM
+
+  // Parse CSV properly (handle quoted fields)
+  const parseLine = line => {
+    const res=[]; let cur='', inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){ if(inQ&&line[i+1]==='"'){cur+='"';i++;} else inQ=!inQ; }
+      else if(c===','&&!inQ){res.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    res.push(cur.trim()); return res;
+  };
+
+  const lines = text.split('\n').filter(l=>l.trim());
+  if(lines.length < 2) throw new Error('Empty sheet');
+  const cols = parseLine(lines[0]);
+  const rows = lines.slice(1).map(l => {
+    const parts = parseLine(l);
+    return parts.map(v => {
+      const s = v.replace(/^'+/, '').trim(); // strip leading apostrophes
+      if(/^\d{8}$/.test(s)) return '0' + s; // restore leading zero
       return s;
-    })
-  );
-  console.log('fetchSheetRows — cols:', cols);
-  console.log('fetchSheetRows — row 0:', rows[0]);
-  console.log('fetchSheetRows — last row:', rows[rows.length-1]);
-  // Raw cell dump for last row — to see cell.v, cell.f, cell.p
-  const lastRaw = (data.table.rows[data.table.rows.length-1]?.c || []);
-  console.log('RAW last row cells:', lastRaw.map((c,i)=>({i, v:c?.v, f:c?.f, p:c?.p, label:cols[i]})));
+    });
+  });
   return { cols, rows };
 }
 let _diyuvimSyncInterval = null;

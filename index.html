@@ -1095,7 +1095,7 @@ input[type=file] { display: none; }
 
   <!-- STEP 2: UPLOAD -->
   <div class="section">
-    <div class="section-header"><span class="section-title">📂 שלב 2 — העלאת הקובץ</span></div>
+    <div class="section-header"><span class="section-title">📂 שלב 2 — העלאת הקובץ ומיפוי עמודות</span></div>
     <div style="padding:20px;">
 
       <!-- IMPORT MODE -->
@@ -1119,36 +1119,49 @@ input[type=file] { display: none; }
       </label>
       <input type="file" id="csvInput2" accept=".csv" onchange="handleImportWithPreview(event)">
 
-      <!-- PREVIEW AREA -->
-      <div id="importPreview" style="display:none;margin-top:20px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-          <div style="font-size:14px;font-weight:700;">👁️ תצוגה מקדימה</div>
+      <!-- COLUMN MAPPER -->
+      <div id="importPreview" style="display:none;margin-top:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:15px;font-weight:700;">🗂️ מיפוי עמודות</div>
           <div id="previewStats" style="font-size:13px;color:var(--text2);"></div>
         </div>
-        <!-- ERRORS -->
+        <div style="font-size:12px;color:var(--text2);margin-bottom:16px;">עמודות שזוהו אוטומטית מוצגות בירוק. גרור עמודות מהבריכה התחתונה לכרטיסייה המתאימה כדי לתקן.</div>
         <div id="importErrors" style="display:none;margin-bottom:12px;"></div>
-        <!-- TABLE PREVIEW -->
-        <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-              <tr style="background:var(--surface2);">
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">#</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">ת"ז</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">שם מלא</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">גיל</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">כתובת</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">טלפון</th>
-                <th style="padding:8px 12px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">סטטוס</th>
-              </tr>
-            </thead>
-            <tbody id="previewBody"></tbody>
-          </table>
+
+        <!-- CARDS GRID -->
+        <div id="mapperGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:16px;"></div>
+
+        <!-- UNMATCHED POOL -->
+        <div id="unmatchedWrap" style="display:none;margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">⬇️ עמודות שלא שויכו — גרור לכרטיסייה המתאימה:</div>
+          <div id="unmatchedPool" style="background:var(--surface2);border:1.5px dashed var(--border2);border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;min-height:48px;"
+            ondragover="event.preventDefault()" ondrop="dropToPool(event)"></div>
         </div>
-        <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-danger" id="confirmReplaceBtn" onclick="confirmImport('replace')">🔄 החלף רשימה קיימת</button>
-          <button class="btn btn-primary" id="confirmAppendBtn" onclick="confirmImport('append')">➕ הוסף לרשימה קיימת</button>
+
+        <!-- PREVIEW TABLE -->
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">👁️ תצוגה מקדימה (10 שורות ראשונות)</div>
+          <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead><tr style="background:var(--surface2);">
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">#</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">ת"ז</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">שם מלא</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">גיל</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">כתובת</th>
+                <th style="padding:7px 10px;text-align:right;color:var(--text2);font-size:11px;border-bottom:1px solid var(--border);">טלפון</th>
+              </tr></thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+          <div id="previewRowCount" style="font-size:11px;color:var(--text3);margin-top:6px;"></div>
+        </div>
+
+        <!-- ACTIONS -->
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-danger" id="confirmReplaceBtn" onclick="confirmImportMapped('replace')">🔄 החלף רשימה קיימת</button>
+          <button class="btn btn-primary" id="confirmAppendBtn" onclick="confirmImportMapped('append')">➕ הוסף לרשימה קיימת</button>
           <button class="btn btn-ghost btn-sm" onclick="cancelImport()">ביטול</button>
-          <span id="previewRowCount" style="font-size:12px;color:var(--text2);margin-right:auto;"></span>
         </div>
       </div>
 
@@ -2269,6 +2282,11 @@ function parseCSVRows(text) {
   return rows;
 }
 
+window.confirmImportMapped = async function(mode) {
+  // _pendingRows is already up-to-date from recomputePreview
+  await window.confirmImport(mode);
+}
+
 window.confirmImport = async function(mode) {
   if(!_pendingRows.length) return;
   const replaceBtn = document.getElementById('confirmReplaceBtn');
@@ -2330,59 +2348,222 @@ window.handleImport = async function(e) {
   // Also handle UTF-8 BOM
   text = text.replace(/^\uFEFF/, '');
 
+  // Find header row
+  const allLines = text.trim().split('\n').map(l=>l.replace(/\r$/,''));
+  let headerIdx = 0;
+  for(let i=0;i<Math.min(5,allLines.length);i++){
+    if(Object.values(COL_MAP).flat().some(s=>allLines[i].includes(s))){ headerIdx=i; break; }
+  }
+  const rawHeaders = allLines[headerIdx].split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,''));
+  const {map: initialMap} = detectColumns(allLines[headerIdx]);
+  const rawLines = allLines.slice(headerIdx); // keep header as line 0, data from line 1
+
   const rows = parseCSVRows(text);
   if(!rows.length){ showToast('⚠️ לא נמצאו שורות תקינות בקובץ'); e.target.value=''; return; }
   _pendingRows = rows;
-  showPreview(rows);
+  showPreview(rows, rawHeaders, rawLines, initialMap);
   e.target.value='';
 }
 
 window.handleImportWithPreview = window.handleImport;
 
-function showPreview(rows) {
-  const {errors, warnings} = validateRows(rows);
-  const preview = document.getElementById('importPreview');
-  const errDiv = document.getElementById('importErrors');
+// ── COLUMN MAPPER STATE ──
+let _mapperHeaders = [];   // raw col names from file
+let _mapperMap = {};       // field → colIndex (current mapping)
+let _rawLines = [];        // all parsed lines for re-reading
 
+const COL_LABELS = {
+  tz:          'ת"ז',
+  name:        'שם מלא',
+  age:         'גיל',
+  street:      'רחוב',
+  houseNum:    "מס' בית",
+  apt:         'דירה',
+  address:     'כתובת חופשית',
+  phone:       'טלפון',
+  phonesExtra: 'טלפונים נוספים',
+  phoneWelfare:'טלפון רווחה',
+};
+const COL_REQUIRED = new Set(['tz','name']);
+
+function renderMapperGrid() {
+  const grid = document.getElementById('mapperGrid');
+  if(!grid) return;
+  const matched = Object.values(_mapperMap);
+  // Cards for each system field
+  grid.innerHTML = Object.entries(COL_LABELS).map(([field, label]) => {
+    const colIdx = _mapperMap[field];
+    const colName = colIdx !== undefined ? _mapperHeaders[colIdx] : null;
+    const isRequired = COL_REQUIRED.has(field);
+    const matched = colName !== null;
+    const borderColor = matched ? '#059669' : isRequired ? '#dc2626' : 'var(--border2)';
+    const headerBg = matched ? '#ecfdf5' : isRequired ? '#fef2f2' : 'var(--surface2)';
+    const headerColor = matched ? '#059669' : isRequired ? '#dc2626' : 'var(--text2)';
+    const statusIcon = matched ? '✓' : isRequired ? '!' : '?';
+    return `<div class="mapper-card" data-field="${field}"
+        style="background:var(--surface);border:1.5px solid ${borderColor};border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;"
+        ondragover="event.preventDefault();this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.2)'"
+        ondragleave="this.style.boxShadow=''"
+        ondrop="dropToCard(event,'${field}')">
+      <div style="padding:7px 10px;background:${headerBg};border-bottom:1px solid ${borderColor};text-align:center;">
+        <span style="font-size:11px;font-weight:700;color:${headerColor};">${label} ${statusIcon}</span>
+        ${isRequired ? '<span style="font-size:9px;color:var(--absent);"> חובה</span>' : ''}
+      </div>
+      <div style="padding:6px 8px;min-height:32px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);text-align:center;">
+        ${colName ? `<span style="font-size:10px;color:var(--text3);">↓</span>` : ''}
+      </div>
+      <div style="padding:6px 8px 8px;min-height:34px;display:flex;align-items:center;justify-content:center;">
+        ${colName
+          ? `<div draggable="true" data-colidx="${colIdx}" data-fromfield="${field}"
+              ondragstart="dragStart(event)"
+              style="background:${matched?'#ecfdf5':'var(--surface2)'};border:1px solid ${borderColor};border-radius:6px;padding:4px 8px;font-size:11px;color:${matched?'#059669':'var(--text2)'};cursor:grab;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+              title="${colName}">${colName}</div>`
+          : `<span style="font-size:10px;color:var(--text3);font-style:italic;">גרור לכאן</span>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update unmatched pool
+  const assignedIdxs = new Set(Object.values(_mapperMap).filter(v=>v!==undefined));
+  const unmatched = _mapperHeaders.map((h,i)=>({h,i})).filter(({i})=>!assignedIdxs.has(i));
+  const pool = document.getElementById('unmatchedPool');
+  const wrap = document.getElementById('unmatchedWrap');
+  if(pool && wrap) {
+    wrap.style.display = unmatched.length ? 'block' : 'none';
+    pool.innerHTML = unmatched.map(({h,i})=>
+      `<div draggable="true" data-colidx="${i}" data-fromfield="__pool__"
+        ondragstart="dragStart(event)"
+        style="background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text);cursor:grab;display:flex;align-items:center;gap:6px;">
+        <span style="font-size:10px;color:var(--text3);">⠿</span>${h}
+      </div>`
+    ).join('');
+  }
+
+  // Update stats
+  const matchedCount = Object.values(_mapperMap).filter(v=>v!==undefined).length;
+  const total = Object.keys(COL_LABELS).length;
+  document.getElementById('previewStats').innerHTML =
+    `<span style="color:var(--present);font-weight:600;">${matchedCount} מתוך ${total} שדות שויכו</span>` +
+    (unmatched.length ? ` &nbsp;·&nbsp; <span style="color:var(--warn);font-weight:600;">${unmatched.length} לא שויכו</span>` : '');
+
+  // Enable/disable confirm buttons
+  const hasRequired = COL_REQUIRED.has('tz') ? _mapperMap['tz']!==undefined : true;
+  const hasName = _mapperMap['name']!==undefined;
+  const ok = hasRequired && hasName;
+  const rb = document.getElementById('confirmReplaceBtn');
+  const ab = document.getElementById('confirmAppendBtn');
+  if(rb){ rb.disabled=!ok; rb.style.opacity=ok?'1':'0.4'; }
+  if(ab){ ab.disabled=!ok; ab.style.opacity=ok?'1':'0.4'; }
+}
+
+let _dragColIdx = null;
+let _dragFromField = null;
+window.dragStart = function(e) {
+  _dragColIdx = parseInt(e.currentTarget.dataset.colidx);
+  _dragFromField = e.currentTarget.dataset.fromfield;
+  e.dataTransfer.effectAllowed = 'move';
+}
+window.dropToCard = function(e, targetField) {
+  e.preventDefault();
+  e.currentTarget.style.boxShadow = '';
+  if(_dragColIdx === null) return;
+  // If source was another card, clear it first
+  if(_dragFromField && _dragFromField !== '__pool__') {
+    delete _mapperMap[_dragFromField];
+  }
+  // If target field already has a col, send it to pool (just delete mapping)
+  if(_mapperMap[targetField] !== undefined && _mapperMap[targetField] !== _dragColIdx) {
+    delete _mapperMap[targetField];
+  }
+  _mapperMap[targetField] = _dragColIdx;
+  _dragColIdx = null; _dragFromField = null;
+  renderMapperGrid();
+  recomputePreview();
+}
+window.dropToPool = function(e) {
+  e.preventDefault();
+  if(_dragColIdx === null) return;
+  if(_dragFromField && _dragFromField !== '__pool__') {
+    delete _mapperMap[_dragFromField];
+  }
+  _dragColIdx = null; _dragFromField = null;
+  renderMapperGrid();
+  recomputePreview();
+}
+
+function recomputePreview() {
+  const rows = buildRowsFromMapping();
+  _pendingRows = rows;
+  const shown = rows.slice(0,10);
+  const body = document.getElementById('previewBody');
+  if(!body) return;
+  body.innerHTML = shown.map((r,i) => {
+    const hasErr = !r.name;
+    return `<tr style="${hasErr?'background:var(--absent-light);':''}border-bottom:1px solid var(--border);">
+      <td style="padding:7px 10px;">${i+1}</td>
+      <td style="padding:7px 10px;font-size:12px;${!r.tz?'color:var(--text3);':''}">${r.tz||'—'}</td>
+      <td style="padding:7px 10px;font-weight:600;${!r.name?'color:var(--absent);':''}">${r.name||'❌ חסר'}</td>
+      <td style="padding:7px 10px;color:var(--text2);">${r.age||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${r.address||r.street||'—'}</td>
+      <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${r.phone||'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('previewRowCount').textContent =
+    rows.length > 10 ? `מוצגות 10 מתוך ${rows.length} שורות` : `${rows.length} שורות בסך הכל`;
+}
+
+function buildRowsFromMapping() {
+  const get = (parts, field) => {
+    const idx = _mapperMap[field];
+    return (idx !== undefined && idx < parts.length) ? (parts[idx]||'').trim().replace(/^"|"$/g,'') : '';
+  };
+  const rows = [];
+  for(let i=1; i<_rawLines.length; i++){
+    const parts = _rawLines[i].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
+    if(parts.every(p=>!p)) continue;
+    const street = get(parts,'street');
+    const houseNum = get(parts,'houseNum');
+    const apt = get(parts,'apt');
+    const addrFree = get(parts,'address');
+    const rawTz = get(parts,'tz').replace(/[^0-9]/g,'');
+    const normTz = rawTz.length===8 ? '0'+rawTz : rawTz;
+    rows.push({
+      _line: i+1,
+      index: String(i),
+      tz: normTz,
+      name: get(parts,'name'),
+      age: get(parts,'age'),
+      street, houseNum, apt,
+      address: addrFree || [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
+      phone: get(parts,'phone'),
+      phonesExtra: get(parts,'phonesExtra'),
+      phoneWelfare: get(parts,'phoneWelfare'),
+    });
+  }
+  return rows;
+}
+
+function showPreview(rows, headers, rawLines, initialMap) {
+  _mapperHeaders = headers;
+  _mapperMap = {...initialMap};
+  _rawLines = rawLines;
+  _pendingRows = rows;
+
+  const {errors, warnings} = validateRows(rows);
+  const errDiv = document.getElementById('importErrors');
   if(errors.length || warnings.length) {
     errDiv.style.display='block';
     errDiv.innerHTML = [
       ...errors.map(e=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--absent-light);border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;"><span>🔴</span>${e}</div>`),
       ...warnings.map(w=>`<div style="display:flex;gap:8px;align-items:flex-start;background:var(--warn-light);border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:12px;"><span>🟡</span>${w}</div>`)
     ].join('');
-  } else {
-    errDiv.style.display='none';
-    errDiv.innerHTML='';
-  }
+  } else { errDiv.style.display='none'; errDiv.innerHTML=''; }
 
-  const hasErrors = errors.length > 0;
-  const rb = document.getElementById('confirmReplaceBtn');
-  const ab = document.getElementById('confirmAppendBtn');
-  if(rb){ rb.disabled=hasErrors; rb.style.opacity=hasErrors?'0.4':'1'; }
-  if(ab){ ab.disabled=hasErrors; ab.style.opacity=hasErrors?'0.4':'1'; }
+  renderMapperGrid();
+  recomputePreview();
 
-  document.getElementById('previewStats').innerHTML =
-    `<span style="color:var(--present);font-weight:600;">${rows.length} שורות</span>` +
-    (errors.length ? ` &nbsp;·&nbsp; <span style="color:var(--absent);font-weight:600;">${errors.length} שגיאות</span>` : '') +
-    (warnings.length ? ` &nbsp;·&nbsp; <span style="color:var(--warn);font-weight:600;">${warnings.length} אזהרות</span>` : '');
-
-  const shown = rows.slice(0,10);
-  document.getElementById('previewBody').innerHTML = shown.map(r => {
-    const hasErr = !r.name || (r.tz && r.tz.length!==9);
-    return `<tr style="${hasErr?'background:var(--absent-light);':''}border-bottom:1px solid var(--border);">
-      <td style="padding:7px 12px;"><span class="idx">${r.index}</span></td>
-      <td style="padding:7px 12px;font-size:12px;${!r.tz?'color:var(--absent);font-weight:600;':''}">${r.tz||'❌ חסר'}</td>
-      <td style="padding:7px 12px;font-weight:600;${!r.name?'color:var(--absent);':''}">${r.name||'❌ חסר'}</td>
-      <td style="padding:7px 12px;color:var(--text2);">${r.age||'—'}</td>
-      <td style="padding:7px 12px;font-size:12px;color:var(--text2);">${r.address||r.street||'—'}</td>
-      <td style="padding:7px 12px;font-size:12px;color:var(--text2);">${r.phone||'—'}</td>
-      <td style="padding:7px 12px;"><span class="badge badge-unknown" style="font-size:10px;">לא מולא</span></td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('previewRowCount').textContent =
-    rows.length>10 ? `מוצגות 10 מתוך ${rows.length} שורות` : '';
-
+  const preview = document.getElementById('importPreview');
   preview.style.display='block';
   preview.scrollIntoView({behavior:'smooth',block:'start'});
 }

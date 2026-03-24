@@ -990,7 +990,7 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;position:relative;z-index:1;">
+<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
   <!-- IMPORT/EXPORT SECTION -->
   <div style="padding:20px 28px 0;">
     <div class="section" style="margin-bottom:20px;">
@@ -1112,7 +1112,10 @@ input[type=file] { display: none; }
         </div>
       </div>
 
-      <label class="import-area" for="csvInput2" id="importDropZone">
+      <label class="import-area" for="csvInput2" id="importDropZone"
+        ondragover="event.preventDefault();event.dataTransfer.dropEffect='copy';this.style.borderColor='var(--accent)';this.style.background='var(--accent-light)'"
+        ondragleave="this.style.borderColor='';this.style.background=''"
+        ondrop="event.preventDefault();this.style.borderColor='';this.style.background='';handleFileDrop(event)">
         <div style="font-size:40px;margin-bottom:10px;">📂</div>
         <strong style="font-size:15px;">לחץ לבחירת קובץ CSV</strong>
         <p style="font-size:13px;margin-top:6px;color:var(--text3);">או גרור קובץ לכאן</p>
@@ -2403,6 +2406,17 @@ window.handleImport = async function(e) {
 
 window.handleImportWithPreview = window.handleImport;
 
+window.handleFileDrop = function(e) {
+  const file = e.dataTransfer.files[0];
+  if(!file) return;
+  if(!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+    showToast('⚠️ יש לגרור קובץ CSV בלבד');
+    return;
+  }
+  // Trigger handleImport with a synthetic event-like object
+  window.handleImport({ target: { files: [file], value: '' } });
+}
+
 // ── COLUMN MAPPER STATE ──
 let _mapperHeaders = [];   // raw col names from file
 let _mapperMap = {};       // field → colIndex (current mapping)
@@ -2428,139 +2442,136 @@ const MULTI_FIELDS = new Set(['name','firstName','lastName','phone','phonesExtra
 function renderMapperGrid() {
   const grid = document.getElementById('mapperGrid');
   if(!grid) return;
-  const matched = Object.values(_mapperMap);
-  // Cards for each system field
+
   grid.innerHTML = Object.entries(COL_LABELS).map(([field, label]) => {
-    const colIdx = _mapperMap[field];
-    const colName = colIdx !== undefined ? _mapperHeaders[colIdx] : null;
+    const idxs = Array.isArray(_mapperMap[field]) ? _mapperMap[field] : (_mapperMap[field]!==undefined ? [_mapperMap[field]] : []);
+    const isMulti = MULTI_FIELDS.has(field);
     const isRequired = COL_REQUIRED.has(field);
-    const matched = colName !== null;
+    const matched = idxs.length > 0;
     const borderColor = matched ? '#059669' : isRequired ? '#dc2626' : 'var(--border2)';
-    const headerBg = matched ? '#ecfdf5' : isRequired ? '#fef2f2' : 'var(--surface2)';
+    const headerBg   = matched ? '#ecfdf5' : isRequired ? '#fef2f2' : 'var(--surface2)';
     const headerColor = matched ? '#059669' : isRequired ? '#dc2626' : 'var(--text2)';
-    const statusIcon = matched ? '✓' : isRequired ? '!' : '?';
+    const statusIcon  = matched ? '✓' : isRequired ? '!' : '?';
+
+    // Draggable chips for selected columns
+    const chips = idxs.map(ci => {
+      const cn = _mapperHeaders[ci] || '';
+      return `<div draggable="true" data-colidx="${ci}" data-fromfield="${field}"
+        style="display:inline-flex;align-items:center;gap:3px;background:#ecfdf5;border:1px solid #059669;border-radius:6px;padding:3px 7px;font-size:11px;color:#059669;margin:2px 2px 4px;cursor:grab;">
+        <span style="font-size:10px;opacity:0.6;">⠿</span>${cn}
+        <span onclick="removeColFromField('${field}',${ci})" style="cursor:pointer;font-weight:700;margin-right:2px;opacity:0.7;" title="הסר">×</span>
+      </div>`;
+    }).join('');
+
+    // Dropdown for adding columns
+    const opts = _mapperHeaders.map((h,i) =>
+      `<option value="${i}">${h}</option>`
+    ).join('');
+    const selectLabel = (!matched || isMulti) ? (matched ? '+ הוסף עמודה נוספת' : 'בחר עמודה...') : 'החלף...';
+
     return `<div class="mapper-card" data-field="${field}"
-        style="background:var(--surface);border:1.5px solid ${borderColor};border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;">
+        style="background:var(--surface);border:1.5px solid ${borderColor};border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;"
+        ondragover="event.preventDefault();this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.25)'"
+        ondragleave="this.style.boxShadow=''"
+        ondrop="event.preventDefault();this.style.boxShadow='';cardDrop(event,'${field}')">
       <div style="padding:7px 10px;background:${headerBg};border-bottom:1px solid ${borderColor};text-align:center;">
         <span style="font-size:11px;font-weight:700;color:${headerColor};">${label} ${statusIcon}</span>
         ${isRequired ? '<span style="font-size:9px;color:var(--absent);"> חובה</span>' : ''}
+        ${isMulti ? '<span style="font-size:9px;color:var(--text3);"> (שילוב)</span>' : ''}
       </div>
-      <div style="padding:6px 8px;min-height:32px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);text-align:center;">
-        ${colName ? `<span style="font-size:10px;color:var(--text3);">↓</span>` : ''}
-      </div>
-      <div style="padding:6px 8px 8px;min-height:34px;display:flex;align-items:center;justify-content:center;">
-        ${colName
-          ? `<div draggable="true" data-colidx="${colIdx}" data-fromfield="${field}"
-              style="background:${matched?'#ecfdf5':'var(--surface2)'};border:1px solid ${borderColor};border-radius:6px;padding:4px 8px;font-size:11px;color:${matched?'#059669':'var(--text2)'};cursor:grab;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-              title="${colName}">${colName}</div>`
-          : `<span style="font-size:10px;color:var(--text3);font-style:italic;">גרור לכאן</span>`
-        }
+      <div style="padding:6px 8px 8px;">
+        <div style="display:flex;flex-wrap:wrap;">${chips}</div>
+        <select onchange="addColToField('${field}',this)"
+          style="font-size:11px;padding:4px 6px;border:1px solid var(--border2);border-radius:6px;background:var(--surface);color:var(--text2);font-family:Heebo,sans-serif;direction:rtl;width:100%;margin-top:2px;">
+          <option value="">${selectLabel}</option>
+          ${opts}
+        </select>
       </div>
     </div>`;
   }).join('');
 
-  // Update unmatched pool
-  const assignedIdxs = new Set(Object.values(_mapperMap).filter(v=>v!==undefined));
+  // Update unmatched pool label only
+  const assignedIdxs = new Set(Object.values(_mapperMap).flat().filter(v=>v!==undefined&&typeof v==='number'));
   const unmatched = _mapperHeaders.map((h,i)=>({h,i})).filter(({i})=>!assignedIdxs.has(i));
-  const pool = document.getElementById('unmatchedPool');
   const wrap = document.getElementById('unmatchedWrap');
-  if(pool && wrap) {
-    wrap.style.display = unmatched.length ? 'block' : 'none';
-    pool.innerHTML = unmatched.map(({h,i})=>
-      `<div draggable="true" data-colidx="${i}" data-fromfield="__pool__"
-        style="background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--text);cursor:grab;display:flex;align-items:center;gap:6px;">
-        <span style="font-size:10px;color:var(--text3);">⠿</span>${h}
-      </div>`
-    ).join('');
-  }
+  const pool = document.getElementById('unmatchedPool');
+  if(wrap) wrap.style.display = unmatched.length ? 'block' : 'none';
+  if(pool) pool.innerHTML = unmatched.map(({h})=>`<span style="background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--text2);">${h}</span>`).join('');
 
-  // Update stats
-  const matchedCount = Object.values(_mapperMap).filter(v=>v!==undefined).length;
+  // Stats
+  const matchedCount = Object.values(_mapperMap).filter(v=>Array.isArray(v)?v.length>0:v!==undefined).length;
   const total = Object.keys(COL_LABELS).length;
-  document.getElementById('previewStats').innerHTML =
+  const statsEl = document.getElementById('previewStats');
+  if(statsEl) statsEl.innerHTML =
     `<span style="color:var(--present);font-weight:600;">${matchedCount} מתוך ${total} שדות שויכו</span>` +
-    (unmatched.length ? ` &nbsp;·&nbsp; <span style="color:var(--warn);font-weight:600;">${unmatched.length} לא שויכו</span>` : '');
+    (unmatched.length ? ` &nbsp;·&nbsp; <span style="color:var(--warn);">${unmatched.length} לא שויכו (לא יובאו)</span>` : ' ✅');
 
-  // Enable/disable confirm buttons
-  const hasRequired = COL_REQUIRED.has('tz') ? _mapperMap['tz']!==undefined : true;
-  const hasName = _mapperMap['name']!==undefined;
-  const ok = hasRequired && hasName;
-  const rb = document.getElementById('confirmReplaceBtn');
-  const ab = document.getElementById('confirmAppendBtn');
-  if(rb){ rb.disabled=!ok; rb.style.opacity=ok?'1':'0.4'; }
-  if(ab){ ab.disabled=!ok; ab.style.opacity=ok?'1':'0.4'; }
+  // Enable/disable confirm
+  const tzOk  = (Array.isArray(_mapperMap['tz'])  ? _mapperMap['tz'].length  : (_mapperMap['tz']!==undefined?1:0)) > 0;
+  const nmOk  = ['name','firstName','lastName'].some(f => Array.isArray(_mapperMap[f]) ? _mapperMap[f].length>0 : _mapperMap[f]!==undefined);
+  const ok = tzOk && nmOk;
+  ['confirmReplaceBtn','confirmAppendBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if(b){ b.disabled=!ok; b.style.opacity=ok?'1':'0.4'; }
+  });
 }
 
-let _dragColIdx = null;
-let _dragFromField = null;
+// Card drag handler — called from ondrop on .mapper-card
+window.cardDrop = function(e, targetField) {
+  const ci = parseInt(e.dataTransfer.getData('text/plain'));
+  const fromField = e.dataTransfer.getData('fromfield');
+  if(isNaN(ci)) return;
+  // Remove from source
+  if(fromField && fromField !== '__pool__') {
+    _mapperMap[fromField] = (_mapperMap[fromField]||[]).filter(x=>x!==ci);
+    if(!_mapperMap[fromField].length) delete _mapperMap[fromField];
+  }
+  // Add to target
+  if(MULTI_FIELDS.has(targetField)) {
+    if(!_mapperMap[targetField]) _mapperMap[targetField] = [];
+    if(!_mapperMap[targetField].includes(ci)) _mapperMap[targetField].push(ci);
+  } else {
+    _mapperMap[targetField] = [ci];
+  }
+  renderMapperGrid();
+  recomputePreview();
+}
 
-// ── Event delegation for drag & drop ──
-// Registered on DOMContentLoaded to ensure it works on dynamically added elements
+// Dragstart delegation for chips
 window.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('dragstart', function(e) {
-    const el = e.target.closest('[data-colidx]');
-    if(!el) return;
-    _dragColIdx = parseInt(el.dataset.colidx);
-    _dragFromField = el.dataset.fromfield || '__pool__';
+    const chip = e.target.closest('[data-colidx]');
+    if(!chip) return;
+    const ci = chip.dataset.colidx;
+    const fromField = chip.dataset.fromfield || '__pool__';
+    e.dataTransfer.setData('text/plain', ci);
+    e.dataTransfer.setData('fromfield', fromField);
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(_dragColIdx));
-  });
-
-  document.addEventListener('dragover', function(e) {
-    const card = e.target.closest('.mapper-card');
-    const pool = e.target.closest('#unmatchedPool');
-    if(card || pool) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    }
-    if(card) card.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.25)';
-  });
-
-  document.addEventListener('dragleave', function(e) {
-    const card = e.target.closest('.mapper-card');
-    if(card && !card.contains(e.relatedTarget)) card.style.boxShadow = '';
-  });
-
-  document.addEventListener('drop', function(e) {
-    const card = e.target.closest('.mapper-card');
-    const pool = e.target.closest('#unmatchedPool');
-    if(!card && !pool) return;
-    e.preventDefault();
-    if(_dragColIdx === null) return;
-
-    if(card) {
-      const targetField = card.dataset.field;
-      if(!targetField) return;
-      card.style.boxShadow = '';
-      // Remove from source field
-      if(_dragFromField && _dragFromField !== '__pool__') {
-        _mapperMap[_dragFromField] = (_mapperMap[_dragFromField]||[]).filter(x=>x!==_dragColIdx);
-        if(!_mapperMap[_dragFromField].length) delete _mapperMap[_dragFromField];
-      }
-      // Add to target
-      if(MULTI_FIELDS.has(targetField)) {
-        if(!_mapperMap[targetField]) _mapperMap[targetField] = [];
-        if(!_mapperMap[targetField].includes(_dragColIdx)) _mapperMap[targetField].push(_dragColIdx);
-      } else {
-        // Single-value field: replace (old chip goes back to pool automatically)
-        _mapperMap[targetField] = [_dragColIdx];
-      }
-    } else if(pool) {
-      if(_dragFromField && _dragFromField !== '__pool__') {
-        _mapperMap[_dragFromField] = (_mapperMap[_dragFromField]||[]).filter(x=>x!==_dragColIdx);
-        if(!_mapperMap[_dragFromField].length) delete _mapperMap[_dragFromField];
-      }
-    }
-
-    _dragColIdx = null; _dragFromField = null;
-    renderMapperGrid();
-    recomputePreview();
   });
 });
 
-window.dragStart = function() {};
-window.dropToCard = function() {};
-window.dropToPool = function() {};
+window.addColToField = function(field, sel) {
+  const val = sel.value;
+  sel.value = '';
+  if(val === '') return;
+  const ci = parseInt(val);
+  if(!Array.isArray(_mapperMap[field])) _mapperMap[field] = [];
+  if(MULTI_FIELDS.has(field)) {
+    if(!_mapperMap[field].includes(ci)) _mapperMap[field].push(ci);
+  } else {
+    _mapperMap[field] = [ci]; // replace for single fields
+  }
+  renderMapperGrid();
+  recomputePreview();
+}
+
+window.removeColFromField = function(field, ci) {
+  if(!Array.isArray(_mapperMap[field])) return;
+  _mapperMap[field] = _mapperMap[field].filter(x=>x!==ci);
+  if(_mapperMap[field].length===0) delete _mapperMap[field];
+  renderMapperGrid();
+  recomputePreview();
+}
 
 function recomputePreview() {
   const rows = buildRowsFromMapping();

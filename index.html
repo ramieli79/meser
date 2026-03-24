@@ -3217,7 +3217,14 @@ async function _saveSheetRows(cols, rows) {
     return acc;
   }, []);
 
-  const existingSheetKeys = new Set(Object.values(S.diyuvim||{}).filter(r=>r.source!=='manual').map(r=>r.sheetRowKey||''));
+  // Build existing keys set — normalize tz variants (8 digits ↔ 9 digits with leading zero)
+  const existingSheetKeys = new Set();
+  Object.values(S.diyuvim||{}).filter(r=>r.source!=='manual').forEach(r=>{
+    const k = r.sheetRowKey||'';
+    existingSheetKeys.add(k);
+    if(/^\d{8}$/.test(k)) existingSheetKeys.add('0'+k);  // add 9-digit version
+    if(/^0\d{8}$/.test(k)) existingSheetKeys.add(k.slice(1)); // add 8-digit version
+  });
   const mainListTzSet = new Set((S.people||[]).map(p=>p.tz).filter(Boolean));
 
   let imported = 0;

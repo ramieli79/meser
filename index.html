@@ -3049,7 +3049,9 @@ const SHEET_GID = '977613762';
 // Fetch via Google Visualization API — works on HTTPS hosting
 async function fetchSheetRows() {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${SHEET_GID}`;
+  console.log('fetchSheetRows URL:', url);
   const res = await fetch(url, {signal: AbortSignal.timeout(10000)});
+  console.log('fetchSheetRows status:', res.status, res.ok);
   if(!res.ok) throw new Error('HTTP ' + res.status);
   const raw = await res.text();
   // Strip JSONP wrapper: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
@@ -3061,11 +3063,13 @@ async function fetchSheetRows() {
     (r.c || []).map(cell => {
       if(!cell || cell.v == null) return '';
       const s = String(cell.v).trim();
-      // Restore leading zero for 8-digit IDs (Google strips it when storing as number)
       if(/^\d{8}$/.test(s)) return '0' + s;
       return s;
     })
   );
+  console.log('fetchSheetRows — cols:', cols);
+  console.log('fetchSheetRows — row 0:', rows[0]);
+  console.log('fetchSheetRows — last row:', rows[rows.length-1]);
   return { cols, rows };
 }
 let _diyuvimSyncInterval = null;
@@ -3143,16 +3147,21 @@ window.syncDiyuvimNow = async function() {
   const status = document.getElementById('syncStatus');
   if(btn) { btn.disabled=true; btn.textContent='⏳ מסנכרן...'; }
   if(status) status.textContent = '';
+  console.log('syncDiyuvimNow: starting...');
   try {
     const {cols, rows} = await fetchSheetRows();
+    console.log('syncDiyuvimNow: got', rows.length, 'rows, cols:', cols);
+    // Find tz column and log all tz values
+    const tzIdx = cols.findIndex(c => c.includes('זהות') || c.includes('ת"ז'));
+    if(tzIdx>=0) console.log('syncDiyuvimNow: tz values:', rows.map(r=>r[tzIdx]));
     const imported = await _saveSheetRows(cols, rows);
     const now = new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
     if(status) status.textContent = `עודכן ${now} — ${imported} רשומות חדשות`;
     if(imported > 0) showToast(`📡 ${imported} רשומות חדשות התווספו`);
     else showToast('✅ הגיליון עדכני — אין רשומות חדשות');
   } catch(e) {
-    if(status) status.textContent = '⚠️ סנכרון אוטומטי זמין רק אחרי פרסום — השתמש בייבוא CSV';
-    console.error('Sheets sync error:', e);
+    console.error('Sheets sync error:', e.message, e);
+    if(status) status.textContent = '⚠️ שגיאה: ' + e.message;
   } finally {
     if(btn) { btn.disabled=false; btn.textContent='🔄 סנכרון אוטומטי'; }
   }

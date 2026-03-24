@@ -199,7 +199,7 @@ main { padding: 20px 28px; max-width: 1600px; margin: 0 auto; }
   .tabs { padding: 0 4px; overflow-x: auto; white-space: nowrap; display: flex; -webkit-overflow-scrolling: touch; }
   .tab { padding: 12px 10px; font-size: 12px; }
   main { padding: 8px 8px; }
-  .dash2-grid { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+  .dash2-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .dash2-card { padding: 14px 12px; }
   .dash2-card .val { font-size: 28px !important; }
   .sticky-toolbar { top: 54px; padding: 8px 8px; }
@@ -386,11 +386,10 @@ input[type=file] { display: none; }
 
 /* ── DASHBOARD TAB ── */
 .dash2-grid {
-  display: flex;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 20px;
-  overflow-x: auto;
 }
 .dash2-card {
   background: var(--surface);
@@ -3231,7 +3230,8 @@ async function _saveSheetRows(cols, rows) {
     const lastName  = colLastName>=0  ? row[colLastName]||''  : '';
     if(!firstName && !lastName) continue;
 
-    const tz     = (colTz>=0 ? row[colTz]||'' : '').replace(/[^0-9]/g,'');
+    const rawTzD  = (colTz>=0 ? row[colTz]||'' : '').replace(/[^0-9]/g,'');
+    const tz      = rawTzD.length===8 ? '0'+rawTzD : rawTzD;
     const street = colStreet>=0 ? row[colStreet]||'' : '';
     const apt    = colApt>=0    ? row[colApt]||''    : '';
     const phone  = colPhone>=0  ? row[colPhone]||''  : '';
@@ -3495,7 +3495,7 @@ window.renderDiyuvim = function() {
 
   if(s) rows = rows.filter(r =>
     (r.firstName||'').includes(s)||(r.lastName||'').includes(s)||
-    (r.tz||'').includes(s)||(r.phone||'').includes(s)||
+    (r.tz||'').includes(s)||('0'+(r.tz||'')).includes(s)||(r.phone||'').includes(s)||
     (r.street||'').includes(s)
   );
 

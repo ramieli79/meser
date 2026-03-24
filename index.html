@@ -3074,6 +3074,9 @@ async function fetchSheetRows() {
   console.log('fetchSheetRows — cols:', cols);
   console.log('fetchSheetRows — row 0:', rows[0]);
   console.log('fetchSheetRows — last row:', rows[rows.length-1]);
+  // Raw cell dump for last row — to see cell.v, cell.f, cell.p
+  const lastRaw = (data.table.rows[data.table.rows.length-1]?.c || []);
+  console.log('RAW last row cells:', lastRaw.map((c,i)=>({i, v:c?.v, f:c?.f, p:c?.p, label:cols[i]})));
   return { cols, rows };
 }
 let _diyuvimSyncInterval = null;

@@ -3061,8 +3061,12 @@ async function fetchSheetRows() {
   const cols = data.table.cols.map(c => (c.label || '').trim());
   const rows = (data.table.rows || []).map(r =>
     (r.c || []).map(cell => {
-      if(!cell || cell.v == null) return '';
-      const s = String(cell.v).trim();
+      if(!cell) return '';
+      // Use formatted value (cell.f) first — it preserves leading zeros that cell.v drops
+      const f = (cell.f != null) ? String(cell.f).trim() : null;
+      const v = (cell.v != null) ? String(cell.v).trim() : null;
+      const s = f || v || '';
+      // Fallback: restore leading zero for 8-digit numbers
       if(/^\d{8}$/.test(s)) return '0' + s;
       return s;
     })

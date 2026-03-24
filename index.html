@@ -66,6 +66,7 @@ header {
   border-bottom: 1px solid var(--border);
   padding: 0 28px;
   display: flex; gap: 0;
+  position: sticky; top: 62px; z-index: 101;
 }
 .tab {
   padding: 14px 20px; cursor: pointer; color: var(--text2);
@@ -465,7 +466,7 @@ input[type=file] { display: none; }
 </header>
 
 <!-- TABS -->
-<div class="tabs" style="position:relative;z-index:101;">
+<div class="tabs">
   <div class="tab active" onclick="switchTab('shatil')">🔵 צוות שטח</div>
   <div class="tab" onclick="switchTab('meser')">🟢 צוות מס&quot;ר</div>
   <div class="tab" onclick="switchTab('summary')">📋 רשימה כוללת</div>
@@ -480,7 +481,7 @@ input[type=file] { display: none; }
 <main>
 
 <!-- ═══ TAB LOG ═══ -->
-<div id="tab-log" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding:20px 28px;">
+<div id="tab-log" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 112px);padding:20px 28px;">
   <div style="max-width:900px;margin:0 auto;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <div style="font-size:18px;font-weight:800;color:var(--text);">📜 לוג פעילות</div>
@@ -510,7 +511,7 @@ input[type=file] { display: none; }
 </div>
 
 <!-- ═══ TAB ADMIN ═══ -->
-<div id="tab-admin" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding:20px 28px;">
+<div id="tab-admin" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 112px);padding:20px 28px;">
   <div style="max-width:900px;margin:0 auto;">
     <div style="font-size:18px;font-weight:800;margin-bottom:20px;color:var(--text);">👤 ניהול משתמשים</div>
 
@@ -544,7 +545,7 @@ input[type=file] { display: none; }
 </div>
 
 <!-- ═══ TAB DASHBOARD ═══ -->
-<div id="tab-dashboard" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
+<div id="tab-dashboard" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 112px);padding-bottom:32px;">
   <div class="dash2-grid" id="dash2Grid">
     <div class="dash2-card c-total"><div class="label">סה"כ ברשימה</div><div class="val" id="d2Total">0</div></div>
     <div class="dash2-card c-missing"><div class="label">נעדרים / לכודים</div><div class="val" id="d2Missing" style="color:var(--absent)">0</div><div class="sub" id="d2MissingPct"></div></div>
@@ -990,7 +991,7 @@ input[type=file] { display: none; }
   </div>
 </div>
 
-<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 120px);padding-bottom:32px;">
+<div id="tab-setup" class="tab-content" style="overflow-y:auto;max-height:calc(100vh - 112px);padding-bottom:32px;">
   <!-- IMPORT/EXPORT SECTION -->
   <div style="padding:20px 28px 0;">
     <div class="section" style="margin-bottom:20px;">

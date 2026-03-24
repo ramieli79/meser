@@ -1133,7 +1133,7 @@ input[type=file] { display: none; }
 
         <!-- UNMATCHED POOL -->
         <div id="unmatchedWrap" style="display:none;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">⬇️ עמודות שלא שויכו — גרור לכרטיסייה המתאימה:</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px;">⬇️ עמודות שלא שויכו — לא יובאו</div><div style="font-size:11px;color:var(--text3);margin-bottom:8px;">גרור עמודה לכרטיסייה המתאימה אם היא רלוונטית. שאר העמודות יתעלמו.</div>
           <div id="unmatchedPool" style="background:var(--surface2);border:1.5px dashed var(--border2);border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:8px;min-height:48px;"
             ondragover="event.preventDefault()" ondrop="dropToPool(event)"></div>
         </div>
@@ -2224,11 +2224,13 @@ window.setImportMode = function(mode) {
 const COL_MAP = {
   tz:          ['תעודת זהות','ת"ז','תז','id','ת.ז'],
   name:        ['שם מלא','שם','name','שם פרטי ומשפחה'],
+  firstName:   ['שם פרטי','first name','firstname','פרטי'],
+  lastName:    ['שם משפחה','last name','lastname','משפחה','family'],
   age:         ['גיל','age'],
-  street:      ['שם רחוב','רחוב','street'],
-  houseNum:    ['מספר בית','מספר ','מס בית','מס׳ בית','house','בית'],
+  street:      ['שם רחוב','רחוב','street','כתובת'],
+  houseNum:    ['מספר בית','מספר ','מס בית','מס׳ בית','מספר	','house'],
   apt:         ['מספר דירה','דירה','apt','apartment'],
-  address:     ['כתובת טקסט חופשי','כתובת','address','כתובת מלאה'],
+  address:     ['כתובת טקסט חופשי','כתובת מלאה','address'],
   phone:       ['טלפון פרטי','טלפון','phone','נייד','סלולרי'],
   phonesExtra: ['טלפונים ממקורות נוספים','טלפונים נוספים','טלפון נוסף'],
   phoneWelfare:['טלפון רווחה','רווחה'],
@@ -2236,11 +2238,29 @@ const COL_MAP = {
 
 function detectColumns(headerLine) {
   const headers = headerLine.split(',').map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,''));
-  const map = {}; // fieldName → colIndex
+  const map = {}; // fieldName → array of colIdx
+  const usedCols = new Set();
+  // Pass 1: exact match
   headers.forEach((h, i) => {
+    const hn = h.trim().toLowerCase();
     for(const [field, synonyms] of Object.entries(COL_MAP)) {
-      if(synonyms.some(s => h.includes(s) || s.includes(h))) {
-        if(!(field in map)) map[field] = i;
+      if(usedCols.has(i)) continue;
+      if(!MULTI_FIELDS.has(field) && map[field]?.length) continue; // single-field already matched
+      if(synonyms.some(s => s.trim().toLowerCase() === hn)) {
+        if(!map[field]) map[field] = [];
+        map[field].push(i); usedCols.add(i); break;
+      }
+    }
+  });
+  // Pass 2: prefix/contains for unmatched cols
+  headers.forEach((h, i) => {
+    if(usedCols.has(i)) return;
+    const hn = h.trim().toLowerCase();
+    for(const [field, synonyms] of Object.entries(COL_MAP)) {
+      if(!MULTI_FIELDS.has(field) && map[field]?.length) continue;
+      if(synonyms.some(s => hn.includes(s.trim().toLowerCase()) || s.trim().toLowerCase().includes(hn))) {
+        if(!map[field]) map[field] = [];
+        map[field].push(i); usedCols.add(i); break;
       }
     }
   });
@@ -2268,11 +2288,15 @@ function parseCSVRows(text) {
     const addrFree = get(parts,'address');
     const rawTz = get(parts,'tz').replace(/[^0-9]/g,'');
     const normTz = rawTz.length===8 ? '0'+rawTz : rawTz;
+    const fn = get(parts,'firstName');
+    const ln = get(parts,'lastName');
+    const nm = get(parts,'name') || [fn,ln].filter(Boolean).join(' ');
     rows.push({
       _line: i+1,
       index: String(i-headerIdx),
       tz: normTz,
-      name: get(parts,'name'),
+      name: nm,
+      firstName: fn, lastName: ln,
       age: get(parts,'age'),
       street, houseNum, apt,
       address: addrFree || [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),
@@ -2311,7 +2335,9 @@ window.confirmImport = async function(mode) {
     const id='p_'+(r.tz||r.name).replace(/\s+/g,'_')+'_'+Date.now()+'_'+i;
     const finalTz = (r.tz||'').length===8 ? '0'+r.tz : (r.tz||'');
     batch.set(doc(db,'people',id),{
-      index:r.index, tz:finalTz, name:r.name, age:r.age,
+      index:r.index, tz:finalTz, name:r.name,
+      firstName:r.firstName||'', lastName:r.lastName||'',
+      age:r.age,
       street:r.street, houseNum:r.houseNum, apt:r.apt, address:r.address,
       phone:r.phone, phonesExtra:r.phonesExtra, phoneWelfare:r.phoneWelfare,
     });
@@ -2377,6 +2403,8 @@ let _rawLines = [];        // all parsed lines for re-reading
 const COL_LABELS = {
   tz:          'ת"ז',
   name:        'שם מלא',
+  firstName:   'שם פרטי',
+  lastName:    'שם משפחה',
   age:         'גיל',
   street:      'רחוב',
   houseNum:    "מס' בית",
@@ -2403,10 +2431,7 @@ function renderMapperGrid() {
     const headerColor = matched ? '#059669' : isRequired ? '#dc2626' : 'var(--text2)';
     const statusIcon = matched ? '✓' : isRequired ? '!' : '?';
     return `<div class="mapper-card" data-field="${field}"
-        style="background:var(--surface);border:1.5px solid ${borderColor};border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;"
-        ondragover="event.preventDefault();this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.2)'"
-        ondragleave="this.style.boxShadow=''"
-        ondrop="dropToCard(event,'${field}')">
+        style="background:var(--surface);border:1.5px solid ${borderColor};border-radius:12px;overflow:hidden;transition:box-shadow 0.15s;">
       <div style="padding:7px 10px;background:${headerBg};border-bottom:1px solid ${borderColor};text-align:center;">
         <span style="font-size:11px;font-weight:700;color:${headerColor};">${label} ${statusIcon}</span>
         ${isRequired ? '<span style="font-size:9px;color:var(--absent);"> חובה</span>' : ''}
@@ -2460,58 +2485,70 @@ function renderMapperGrid() {
 let _dragColIdx = null;
 let _dragFromField = null;
 
-// ── Event delegation for drag & drop (works reliably on dynamically generated elements) ──
-document.addEventListener('dragstart', function(e) {
-  const el = e.target.closest('[data-colidx]');
-  if(!el) return;
-  _dragColIdx = parseInt(el.dataset.colidx);
-  _dragFromField = el.dataset.fromfield || '__pool__';
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', _dragColIdx); // required for Firefox
-});
+// ── Event delegation for drag & drop ──
+// Registered on DOMContentLoaded to ensure it works on dynamically added elements
+window.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('dragstart', function(e) {
+    const el = e.target.closest('[data-colidx]');
+    if(!el) return;
+    _dragColIdx = parseInt(el.dataset.colidx);
+    _dragFromField = el.dataset.fromfield || '__pool__';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(_dragColIdx));
+  });
 
-document.addEventListener('dragover', function(e) {
-  const card = e.target.closest('.mapper-card');
-  const pool = e.target.closest('#unmatchedPool');
-  if(card || pool) { e.preventDefault(); }
-  if(card) card.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.25)';
-});
-
-document.addEventListener('dragleave', function(e) {
-  const card = e.target.closest('.mapper-card');
-  if(card && !card.contains(e.relatedTarget)) card.style.boxShadow = '';
-});
-
-document.addEventListener('drop', function(e) {
-  const card = e.target.closest('.mapper-card');
-  const pool = e.target.closest('#unmatchedPool');
-  if(!card && !pool) return;
-  e.preventDefault();
-  if(_dragColIdx === null) return;
-
-  if(card) {
-    const targetField = card.dataset.field;
-    if(!targetField) return;
-    card.style.boxShadow = '';
-    // Clear source
-    if(_dragFromField && _dragFromField !== '__pool__') delete _mapperMap[_dragFromField];
-    // Swap: if target already mapped to different col, send old col back to pool
-    // (just delete it — it'll appear in pool automatically)
-    if(_mapperMap[targetField] !== undefined && _mapperMap[targetField] !== _dragColIdx) {
-      delete _mapperMap[targetField];
+  document.addEventListener('dragover', function(e) {
+    const card = e.target.closest('.mapper-card');
+    const pool = e.target.closest('#unmatchedPool');
+    if(card || pool) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
     }
-    _mapperMap[targetField] = _dragColIdx;
-  } else if(pool) {
-    // Drop back to pool = remove mapping
-    if(_dragFromField && _dragFromField !== '__pool__') delete _mapperMap[_dragFromField];
-  }
+    if(card) card.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.25)';
+  });
 
-  _dragColIdx = null; _dragFromField = null;
-  renderMapperGrid();
-  recomputePreview();
+  document.addEventListener('dragleave', function(e) {
+    const card = e.target.closest('.mapper-card');
+    if(card && !card.contains(e.relatedTarget)) card.style.boxShadow = '';
+  });
+
+  document.addEventListener('drop', function(e) {
+    const card = e.target.closest('.mapper-card');
+    const pool = e.target.closest('#unmatchedPool');
+    if(!card && !pool) return;
+    e.preventDefault();
+    if(_dragColIdx === null) return;
+
+    if(card) {
+      const targetField = card.dataset.field;
+      if(!targetField) return;
+      card.style.boxShadow = '';
+      // Remove from source field
+      if(_dragFromField && _dragFromField !== '__pool__') {
+        _mapperMap[_dragFromField] = (_mapperMap[_dragFromField]||[]).filter(x=>x!==_dragColIdx);
+        if(!_mapperMap[_dragFromField].length) delete _mapperMap[_dragFromField];
+      }
+      // Add to target
+      if(MULTI_FIELDS.has(targetField)) {
+        if(!_mapperMap[targetField]) _mapperMap[targetField] = [];
+        if(!_mapperMap[targetField].includes(_dragColIdx)) _mapperMap[targetField].push(_dragColIdx);
+      } else {
+        // Single-value field: replace (old chip goes back to pool automatically)
+        _mapperMap[targetField] = [_dragColIdx];
+      }
+    } else if(pool) {
+      if(_dragFromField && _dragFromField !== '__pool__') {
+        _mapperMap[_dragFromField] = (_mapperMap[_dragFromField]||[]).filter(x=>x!==_dragColIdx);
+        if(!_mapperMap[_dragFromField].length) delete _mapperMap[_dragFromField];
+      }
+    }
+
+    _dragColIdx = null; _dragFromField = null;
+    renderMapperGrid();
+    recomputePreview();
+  });
 });
 
-// Keep these as no-ops for backward compat with any remaining inline calls
 window.dragStart = function() {};
 window.dropToCard = function() {};
 window.dropToPool = function() {};
@@ -2540,25 +2577,35 @@ function recomputePreview() {
 }
 
 function buildRowsFromMapping() {
-  const get = (parts, field) => {
-    const idx = _mapperMap[field];
-    return (idx !== undefined && idx < parts.length) ? (parts[idx]||'').trim().replace(/^"|"$/g,'') : '';
+  const get = (parts, field, sep=' | ') => {
+    const idxs = _mapperMap[field] || [];
+    return idxs.map(i=>(i<parts.length?(parts[i]||'').trim().replace(/^"|"$/g,''):'')).filter(Boolean).join(sep);
+  };
+  const getSingle = (parts, field) => {
+    const idxs = _mapperMap[field] || [];
+    const i = idxs[0];
+    return (i!==undefined && i<parts.length) ? (parts[i]||'').trim().replace(/^"|"$/g,'') : '';
   };
   const rows = [];
   for(let i=1; i<_rawLines.length; i++){
     const parts = _rawLines[i].split(',').map(s=>s.trim().replace(/^"|"$/g,''));
     if(parts.every(p=>!p)) continue;
-    const street = get(parts,'street');
-    const houseNum = get(parts,'houseNum');
-    const apt = get(parts,'apt');
-    const addrFree = get(parts,'address');
-    const rawTz = get(parts,'tz').replace(/[^0-9]/g,'');
+    const street = getSingle(parts,'street');
+    const houseNum = getSingle(parts,'houseNum');
+    const apt = getSingle(parts,'apt');
+    const addrFree = getSingle(parts,'address');
+    const rawTz = getSingle(parts,'tz').replace(/[^0-9]/g,'');
     const normTz = rawTz.length===8 ? '0'+rawTz : rawTz;
+    const firstName = get(parts,'firstName',' ');
+    const lastName  = get(parts,'lastName',' ');
+    const nameFromParts = [firstName, lastName].filter(Boolean).join(' ');
+    const fullName  = get(parts,'name',' ') || nameFromParts;
     rows.push({
       _line: i+1,
       index: String(i),
       tz: normTz,
-      name: get(parts,'name'),
+      name: fullName,
+      firstName, lastName,
       age: get(parts,'age'),
       street, houseNum, apt,
       address: addrFree || [street, houseNum, apt?'דירה '+apt:''].filter(Boolean).join(' '),

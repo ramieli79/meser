@@ -2423,6 +2423,7 @@ const COL_LABELS = {
   phoneWelfare:'טלפון רווחה',
 };
 const COL_REQUIRED = new Set(['tz','name']);
+const MULTI_FIELDS = new Set(['name','firstName','lastName','phone','phonesExtra','phoneWelfare']);
 
 function renderMapperGrid() {
   const grid = document.getElementById('mapperGrid');
